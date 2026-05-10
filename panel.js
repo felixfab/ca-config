@@ -1136,7 +1136,8 @@
     updateAnchorList: updateAnchorList,
     updateBadge: updateBadge,
     renderTurnPopup: renderTurnPopup,
-    removeTurnPopup: removeTurnPopup
+    removeTurnPopup: removeTurnPopup,
+    renderEditorOverlay: renderEditorOverlay
   };
 
   if (document.readyState === 'loading') {

@@ -485,10 +485,37 @@
   right: 0 !important;
 }
 
+.ca-panel-body::-webkit-scrollbar,
+.ca-editor-sidebar::-webkit-scrollbar,
+.ca-timeline-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ca-panel-body::-webkit-scrollbar-track,
+.ca-editor-sidebar::-webkit-scrollbar-track,
+.ca-timeline-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ca-panel-body::-webkit-scrollbar-thumb,
+.ca-editor-sidebar::-webkit-scrollbar-thumb,
+.ca-timeline-body::-webkit-scrollbar-thumb {
+  background: var(--ca-border);
+  border-radius: 3px;
+}
+
+.ca-panel-body::-webkit-scrollbar-thumb:hover,
+.ca-editor-sidebar::-webkit-scrollbar-thumb:hover,
+.ca-timeline-body::-webkit-scrollbar-thumb:hover {
+  background: var(--ca-text-secondary);
+}
+
 .ca-panel-body {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ca-border) transparent;
 }
 
 .ca-anchor-list {
@@ -986,6 +1013,8 @@
   gap: 16px;
   padding-right: 4px;
   min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ca-border) transparent;
 }
 
 .ca-editor-section {
@@ -1218,6 +1247,8 @@
   overflow-y: auto;
   padding: 16px 24px;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ca-border) transparent;
 }
 
 .ca-timeline-group {

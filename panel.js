@@ -28,6 +28,9 @@
       '<div class="ca-panel-header">' +
       '<h2 class="ca-panel-title">Anchors</h2>' +
       '<div class="ca-header-actions">' +
+      '<button class="ca-btn-icon ca-btn-timeline" data-action="open-timeline" aria-label="Open timeline">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>' +
+      '</button>' +
       '<button class="ca-btn-icon ca-btn-lock" data-action="toggle-lock" aria-label="Lock panel">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>' +
       '</button>' +
@@ -962,6 +965,8 @@
         removeConfirmDialog();
       } else if (action === 'confirm-ok') {
         removeConfirmDialog();
+      } else if (action === 'open-timeline') {
+        window.__ca.timeline.renderTimelineOverlay();
       } else if (action === 'toggle-lock') {
         panelLocked = !panelLocked;
         var lockBtn = window.__ca.shared.$one('.ca-btn-lock');

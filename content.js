@@ -278,6 +278,11 @@
         });
       }
 
+      if (e.altKey && e.key === 't') {
+        e.preventDefault();
+        window.__ca.timeline.renderTimelineOverlay();
+      }
+
       if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
         var activeEl = document.activeElement;
         var isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);

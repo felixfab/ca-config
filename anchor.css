@@ -1394,6 +1394,24 @@
   flex-shrink: 0;
 }
 
+.ca-timeline-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  background: var(--ca-accent);
+  color: white;
+  border-bottom: 1px solid var(--ca-border);
+  flex-shrink: 0;
+}
+
+.ca-timeline-bulk-count {
+  flex: 1;
+  font-size: var(--ca-font-size-sm);
+  font-weight: 500;
+  color: white;
+}
+
 .ca-timeline-heatmap {
   border-bottom: 1px solid var(--ca-border);
   flex-shrink: 0;

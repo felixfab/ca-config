@@ -14,6 +14,8 @@
   var heatmapScrollPos = 0;
   var heatmapColsVisible = 26;
   var heatmapScrollStep = 4;
+  var timelineBulkMode = false;
+  var timelineSelectedIds = [];
 
   function init() {
     if (!window.__ca || !window.__ca.events) {
@@ -39,6 +41,27 @@
     var title = $create('h2', { className: 'ca-editor-title', textContent: 'Anchor Timeline' });
     header.appendChild(title);
 
+    var headerActions = $create('div', { className: 'ca-header-actions' });
+
+    var bulkBtn = $create('button', { className: 'ca-btn-icon ca-btn-bulk', 'data-action': 'toggle-timeline-bulk', 'aria-label': 'Bulk select' });
+    var bulkBtnSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    bulkBtnSvg.setAttribute('viewBox', '0 0 24 24');
+    bulkBtnSvg.setAttribute('fill', 'none');
+    bulkBtnSvg.setAttribute('stroke', 'currentColor');
+    bulkBtnSvg.setAttribute('stroke-width', '2');
+    var bulkBtnRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bulkBtnRect.setAttribute('x', '3');
+    bulkBtnRect.setAttribute('y', '3');
+    bulkBtnRect.setAttribute('width', '18');
+    bulkBtnRect.setAttribute('height', '18');
+    bulkBtnRect.setAttribute('rx', '2');
+    var bulkBtnPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    bulkBtnPath.setAttribute('d', 'M9 12l2 2 4-4');
+    bulkBtnSvg.appendChild(bulkBtnRect);
+    bulkBtnSvg.appendChild(bulkBtnPath);
+    bulkBtn.appendChild(bulkBtnSvg);
+    headerActions.appendChild(bulkBtn);
+
     var closeBtn = $create('button', { className: 'ca-panel-close', 'data-action': 'close-timeline', 'aria-label': 'Close timeline' });
     var closeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     closeSvg.setAttribute('viewBox', '0 0 24 24');
@@ -49,7 +72,8 @@
     closePath.setAttribute('d', 'M18 6L6 18M6 6l12 12');
     closeSvg.appendChild(closePath);
     closeBtn.appendChild(closeSvg);
-    header.appendChild(closeBtn);
+    headerActions.appendChild(closeBtn);
+    header.appendChild(headerActions);
     panel.appendChild(header);
 
     var toolbar = $create('div', { className: 'ca-timeline-toolbar' });
@@ -317,6 +341,7 @@
   }
 
   function updateTimeline() {
+    var $create = window.__ca.shared.$create;
     var anchors = window.__ca.storage.getAll();
 
     if (heatmapDate) {
@@ -367,6 +392,19 @@
     var body = window.__ca.shared.$id('ca-timeline-body');
     if (!body) return;
     while (body.firstChild) body.removeChild(body.firstChild);
+
+    if (timelineBulkMode && timelineSelectedIds.length > 0) {
+      var bulkBar = $create('div', { className: 'ca-timeline-bulk-bar' });
+      var bulkCount = $create('span', { className: 'ca-timeline-bulk-count', textContent: timelineSelectedIds.length + ' selected' });
+      bulkBar.appendChild(bulkCount);
+      var bulkToggleBtn = $create('button', { className: 'ca-btn-bulk-action', 'data-action': 'bulk-toggle-timeline', textContent: 'Toggle' });
+      bulkBar.appendChild(bulkToggleBtn);
+      var bulkExtendBtn = $create('button', { className: 'ca-btn-bulk-action', 'data-action': 'bulk-extend-timeline', textContent: '+5' });
+      bulkBar.appendChild(bulkExtendBtn);
+      var bulkDeleteBtn = $create('button', { className: 'ca-btn-bulk-action ca-btn-danger', 'data-action': 'bulk-delete-timeline', textContent: 'Delete' });
+      bulkBar.appendChild(bulkDeleteBtn);
+      body.appendChild(bulkBar);
+    }
 
     if (currentGroup === 'day') {
       renderGroup(body, 'Today', groups['Today']);
@@ -476,6 +514,15 @@
 
     var card = $create('div', { className: 'ca-timeline-card', 'data-action': 'open-timeline-anchor', 'data-id': a.id });
 
+    if (timelineBulkMode) {
+      var cb = $create('div', {
+        className: 'ca-bulk-checkbox' + (timelineSelectedIds.indexOf(a.id) !== -1 ? ' checked' : ''),
+        'data-action': 'bulk-select-timeline',
+        'data-id': a.id
+      });
+      card.appendChild(cb);
+    }
+
     var topRow = $create('div', { className: 'ca-timeline-card-top' });
 
     var statusClass = 'ca-timeline-card-status' + (isExpired ? ' expired' : (isExpiring ? ' expiring' : ''));
@@ -569,11 +616,45 @@
       if (action === 'close-timeline') {
         removeTimelineOverlay();
       } else if (action === 'open-timeline-anchor') {
+        if (timelineBulkMode) return;
         var id = target.closest('[data-id]').dataset.id;
         var anchor = window.__ca.storage.getAll().filter(function(a) { return a.id === id; })[0];
         if (anchor) {
           window.__ca.panel.renderEditorOverlay('anchor', anchor);
         }
+      } else if (action === 'toggle-timeline-bulk') {
+        timelineBulkMode = !timelineBulkMode;
+        timelineSelectedIds = [];
+        var bBtn = window.__ca.shared.$one('.ca-btn-bulk');
+        if (bBtn) bBtn.className = 'ca-btn-icon ca-btn-bulk' + (timelineBulkMode ? ' active' : '');
+        updateTimeline();
+      } else if (action === 'bulk-select-timeline') {
+        var bid = target.dataset.id;
+        var idx = timelineSelectedIds.indexOf(bid);
+        if (idx === -1) {
+          timelineSelectedIds.push(bid);
+        } else {
+          timelineSelectedIds.splice(idx, 1);
+        }
+        updateTimeline();
+      } else if (action === 'bulk-toggle-timeline') {
+        if (timelineSelectedIds.length > 0) {
+          window.__ca.storage.bulkToggle(timelineSelectedIds);
+          window.__ca.events.emit('anchors:changed');
+        }
+      } else if (action === 'bulk-extend-timeline') {
+        if (timelineSelectedIds.length > 0) {
+          window.__ca.storage.bulkExtend(timelineSelectedIds, 5);
+          window.__ca.events.emit('anchors:changed');
+        }
+      } else if (action === 'bulk-delete-timeline') {
+        var bcount = timelineSelectedIds.length;
+        renderConfirmDialog('Delete ' + bcount + ' selected anchor' + (bcount > 1 ? 's' : '') + '?', function() {
+          window.__ca.storage.bulkDelete(timelineSelectedIds);
+          timelineSelectedIds = [];
+          window.__ca.events.emit('anchors:changed');
+          updateTimeline();
+        });
       } else if (action === 'toggle-timeline-group') {
         var group = target.dataset.group;
         if (group) {

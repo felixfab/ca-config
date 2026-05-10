@@ -147,6 +147,28 @@ Storage.extendTurns(ei.id, 5);
 assert(Storage.getAll()[0].active === true, 'Anchor reactivated');
 assert(Storage.getAll()[0].turnsRemaining === 5, 'Turns restored');
 
+console.log('\n--- Reset Turns ---');
+resetStorage();
+var rt = Storage.createAnchor('Reset test', '', 10);
+for (var ri = 0; ri < 7; ri++) { Storage.decrementTurnsForActive(); }
+assert(Storage.getAll()[0].turnsRemaining === 3, 'Down to 3 turns');
+assert(Storage.getAll()[0].turnsTotal === 10, 'Total still 10');
+Storage.resetTurns(rt.id);
+assert(Storage.getAll()[0].turnsRemaining === 10, 'Turns reset to 10');
+assert(Storage.getAll()[0].turnsTotal === 10, 'Total unchanged');
+assert(Storage.getAll()[0].active === true, 'Still active');
+
+console.log('\n--- Reset After Extend ---');
+Storage.extendTurns(rt.id, 25);
+assert(Storage.getAll()[0].turnsTotal === 35, 'Total inflated to 35');
+assert(Storage.getAll()[0].turnsRemaining === 35, 'Remaining also 35');
+for (ri = 0; ri < 20; ri++) { Storage.decrementTurnsForActive(); }
+assert(Storage.getAll()[0].turnsRemaining === 15, 'Down to 15 after use');
+Storage.resetTurns(rt.id);
+assert(Storage.getAll()[0].turnsRemaining === 10, 'Reset to original 10, not 35');
+assert(Storage.getAll()[0].turnsTotal === 10, 'Total reset to original 10');
+assert(Storage.getAll()[0].originalTurns === 10, 'originalTurns never changes');
+
 console.log('\n--- Add Tag ---');
 resetStorage();
 var tagA = Storage.createAnchor('Tag test', '', 10);

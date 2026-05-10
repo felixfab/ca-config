@@ -77,6 +77,7 @@
       createdAt: Date.now(),
       turnsTotal: turnsTotal,
       turnsRemaining: turnsTotal,
+      originalTurns: turnsTotal,
       active: turnsTotal > 0,
       order: Date.now(),
       global: !!isGlobal
@@ -137,6 +138,21 @@
       if (cache[i].id === id) {
         cache[i].turnsRemaining += additionalTurns;
         cache[i].turnsTotal += additionalTurns;
+        if (cache[i].turnsRemaining > 0) {
+          cache[i].active = true;
+        }
+        break;
+      }
+    }
+    saveToStorage(cache);
+  }
+
+  function resetTurns(id) {
+    for (var i = 0; i < cache.length; i++) {
+      if (cache[i].id === id) {
+        var target = cache[i].originalTurns || cache[i].turnsTotal;
+        cache[i].turnsRemaining = target;
+        cache[i].turnsTotal = target;
         if (cache[i].turnsRemaining > 0) {
           cache[i].active = true;
         }
@@ -360,6 +376,7 @@
     toggleAnchor: toggleAnchor,
     setGlobal: setGlobal,
     extendTurns: extendTurns,
+    resetTurns: resetTurns,
     addTag: addTag,
     removeTag: removeTag,
     bulkToggle: bulkToggle,

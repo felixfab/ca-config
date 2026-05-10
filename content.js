@@ -239,6 +239,7 @@
 
     trigger.addEventListener('mouseleave', function() {
       clearTimeout(showTimeout);
+      if (panel.classList.contains('locked')) return;
       hideTimeout = setTimeout(function() {
         panel.classList.remove('open');
       }, 300);
@@ -249,6 +250,7 @@
     });
 
     panel.addEventListener('mouseleave', function() {
+      if (panel.classList.contains('locked')) return;
       hideTimeout = setTimeout(function() {
         panel.classList.remove('open');
       }, 300);

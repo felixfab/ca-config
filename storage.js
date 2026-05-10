@@ -80,7 +80,8 @@
       originalTurns: turnsTotal,
       active: turnsTotal > 0,
       order: Date.now(),
-      global: !!isGlobal
+      global: !!isGlobal,
+      usageHistory: []
     };
 
     cache.push(anchor);
@@ -255,6 +256,8 @@
         cache[i].usageCount = (cache[i].usageCount || 0) + 1;
         cache[i].lastUsed = Date.now();
         cache[i].totalTurnsConsumed = (cache[i].totalTurnsConsumed || 0) + 1;
+        if (!cache[i].usageHistory) cache[i].usageHistory = [];
+        cache[i].usageHistory.push(Date.now());
         changed = true;
         if (cache[i].turnsRemaining === 0) {
           cache[i].active = false;
@@ -264,6 +267,25 @@
     if (changed) {
       saveToStorage(cache);
     }
+  }
+
+  function getUsageHeatmap() {
+    var heatmap = {};
+    for (var i = 0; i < cache.length; i++) {
+      var cd = new Date(cache[i].createdAt);
+      var cKey = Date.UTC(cd.getUTCFullYear(), cd.getUTCMonth(), cd.getUTCDate());
+      heatmap[cKey] = (heatmap[cKey] || 0) + 1;
+
+      var history = cache[i].usageHistory;
+      if (history && history.length) {
+        for (var j = 0; j < history.length; j++) {
+          var d = new Date(history[j]);
+          var key = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+          heatmap[key] = (heatmap[key] || 0) + 1;
+        }
+      }
+    }
+    return heatmap;
   }
 
   function clearExpired() {
@@ -384,6 +406,7 @@
     bulkExtend: bulkExtend,
     decrementTurnsForActive: decrementTurnsForActive,
     clearExpired: clearExpired,
+    getUsageHeatmap: getUsageHeatmap,
     getSetting: getSetting,
     setSetting: setSetting,
     getInjectionMode: getInjectionMode,

@@ -6,6 +6,14 @@
   var currentFilter = 'all';
   var collapsedGroups = {};
   var overlayEscapeHandler = null;
+  var heatmapExpanded = false;
+  var heatmapMode = 'activity';
+  var heatmapDate = null;
+  var heatmapRange = '6months';
+  var heatmapColor = 'blue';
+  var heatmapScrollPos = 0;
+  var heatmapColsVisible = 26;
+  var heatmapScrollStep = 4;
 
   function init() {
     if (!window.__ca || !window.__ca.events) {
@@ -25,7 +33,6 @@
     var esc = window.__ca.shared.esc;
 
     var overlay = $create('div', { id: 'ca-timeline-overlay', className: 'ca-timeline-overlay' });
-
     var panel = $create('div', { className: 'ca-timeline-panel' });
 
     var header = $create('div', { className: 'ca-timeline-header' });
@@ -47,55 +54,33 @@
 
     var toolbar = $create('div', { className: 'ca-timeline-toolbar' });
 
-    var sortSelect = $create('select', { className: 'ca-sort-select', 'data-action': 'timeline-sort', 'aria-label': 'Sort anchors' });
-    var sortOpts = [
+    var sortSelect = buildSelect('timeline-sort', [
       { v: 'recently-used', t: 'Recently Used' },
       { v: 'newest', t: 'Newest' },
       { v: 'most-used', t: 'Most Used' },
       { v: 'least-remaining', t: 'Least Remaining' }
-    ];
-    for (var si = 0; si < sortOpts.length; si++) {
-      var opt = document.createElement('option');
-      opt.value = sortOpts[si].v;
-      opt.textContent = sortOpts[si].t;
-      if (sortOpts[si].v === currentSort) opt.selected = true;
-      sortSelect.appendChild(opt);
-    }
+    ], currentSort);
     toolbar.appendChild(sortSelect);
 
-    var groupSelect = $create('select', { className: 'ca-sort-select', 'data-action': 'timeline-group', 'aria-label': 'Group anchors' });
-    var groupOpts = [
+    var groupSelect = buildSelect('timeline-group', [
       { v: 'day', t: 'By Day' },
       { v: 'week', t: 'By Week' },
       { v: 'none', t: 'No Grouping' }
-    ];
-    for (var gi = 0; gi < groupOpts.length; gi++) {
-      var gOpt = document.createElement('option');
-      gOpt.value = groupOpts[gi].v;
-      gOpt.textContent = groupOpts[gi].t;
-      if (groupOpts[gi].v === currentGroup) gOpt.selected = true;
-      groupSelect.appendChild(gOpt);
-    }
+    ], currentGroup);
     toolbar.appendChild(groupSelect);
 
-    var filterSelect = $create('select', { className: 'ca-sort-select', 'data-action': 'timeline-filter', 'aria-label': 'Filter anchors' });
-    var filterOpts = [
+    var filterSelect = buildSelect('timeline-filter', [
       { v: 'all', t: 'All' },
       { v: 'active', t: 'Active' },
       { v: 'expiring', t: 'Expiring' },
       { v: 'inactive', t: 'Inactive' },
       { v: 'expired', t: 'Expired' },
       { v: 'global', t: 'Global' }
-    ];
-    for (var fi = 0; fi < filterOpts.length; fi++) {
-      var fOpt = document.createElement('option');
-      fOpt.value = filterOpts[fi].v;
-      fOpt.textContent = filterOpts[fi].t;
-      if (filterOpts[fi].v === currentFilter) fOpt.selected = true;
-      filterSelect.appendChild(fOpt);
-    }
+    ], currentFilter);
     toolbar.appendChild(filterSelect);
     panel.appendChild(toolbar);
+
+    buildHeatmapSection(panel);
 
     var body = $create('div', { className: 'ca-timeline-body', id: 'ca-timeline-body' });
     panel.appendChild(body);
@@ -116,6 +101,210 @@
     updateTimeline();
   }
 
+  function buildSelect(actions, opts, selectedValue) {
+    var sel = window.__ca.shared.$create('select', { className: 'ca-sort-select', 'data-action': actions, 'aria-label': 'Select option' });
+    for (var i = 0; i < opts.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = opts[i].v;
+      opt.textContent = opts[i].t;
+      if (opts[i].v === selectedValue) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    return sel;
+  }
+
+  function buildHeatmapSection(panel) {
+    var $create = window.__ca.shared.$create;
+
+    var section = $create('div', { id: 'ca-timeline-heatmap', className: 'ca-timeline-heatmap' });
+
+    var toggle = $create('div', { className: 'ca-timeline-heatmap-toggle', 'data-action': 'toggle-heatmap' });
+    toggle.textContent = (heatmapExpanded ? '▾' : '▸') + ' Activity Heatmap';
+    section.appendChild(toggle);
+
+    var gridContainer = $create('div', { id: 'ca-timeline-heatmap-grid-container', className: 'ca-timeline-heatmap-grid-container' + (heatmapExpanded ? '' : ' collapsed') });
+    section.appendChild(gridContainer);
+
+    if (heatmapExpanded) {
+      renderHeatmapGrid(gridContainer);
+    }
+
+    panel.appendChild(section);
+  }
+
+  function renderHeatmapGrid(container) {
+    var $create = window.__ca.shared.$create;
+    var heatmap = window.__ca.storage.getUsageHeatmap();
+
+    while (container.firstChild) container.removeChild(container.firstChild);
+
+    var now = new Date();
+    var rangeDays = heatmapRange === '3months' ? 90 : heatmapRange === 'all' ? 365 : 180;
+    var rawStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - rangeDays + 1);
+    var startDow = rawStart.getUTCDay() || 7;
+    var startDateUTC = Date.UTC(rawStart.getUTCFullYear(), rawStart.getUTCMonth(), rawStart.getUTCDate() - (startDow - 1));
+    var todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+
+    var maxVal = 0;
+    var dates = Object.keys(heatmap);
+    for (var i = 0; i < dates.length; i++) {
+      var ts = parseInt(dates[i], 10);
+      if (ts >= startDateUTC) {
+        maxVal = Math.max(maxVal, heatmap[dates[i]]);
+      }
+    }
+    if (maxVal === 0) maxVal = 1;
+
+    var controls = $create('div', { className: 'ca-timeline-heatmap-controls' });
+
+    var modeToggle = $create('button', {
+      className: 'ca-timeline-heatmap-mode-btn',
+      'data-action': 'heatmap-mode',
+      textContent: heatmapMode === 'activity' ? 'Mode: Usage' : 'Mode: Created'
+    });
+    controls.appendChild(modeToggle);
+
+    var colorToggle = $create('button', {
+      className: 'ca-timeline-heatmap-color-btn',
+      'data-action': 'heatmap-color',
+      textContent: heatmapColor === 'blue' ? 'Blue' : 'Green'
+    });
+    controls.appendChild(colorToggle);
+
+    var rangeSelect = buildSelect('heatmap-range', [
+      { v: '3months', t: '3 Months' },
+      { v: '6months', t: '6 Months' },
+      { v: 'all', t: 'All Time' }
+    ], heatmapRange);
+    rangeSelect.className = 'ca-timeline-heatmap-range';
+    controls.appendChild(rangeSelect);
+
+    if (heatmapDate) {
+      var clearBtn = $create('button', { className: 'ca-timeline-heatmap-clear', 'data-action': 'clear-heatmap', textContent: 'Clear filter' });
+      controls.appendChild(clearBtn);
+    }
+
+    container.appendChild(controls);
+
+    var gridFrame = $create('div', { className: 'ca-timeline-heatmap-frame' });
+    var grid = $create('div', { className: 'ca-timeline-heatmap-grid' });
+    var headerRow = $create('div', { className: 'ca-timeline-heatmap-row' });
+    var corner = $create('div', { className: 'ca-timeline-heatmap-label' });
+    headerRow.appendChild(corner);
+
+    var weekMs = 7 * 86400000;
+    var totalCols = Math.max(1, Math.ceil((todayUTC - startDateUTC) / weekMs));
+    var colStartDates = [];
+    for (var c = totalCols - 1; c >= 0; c--) {
+      var colTs = startDateUTC + c * weekMs;
+      colStartDates.push(colTs);
+    }
+
+    if (heatmapScrollPos === 0 || heatmapScrollPos > totalCols - heatmapColsVisible) {
+      heatmapScrollPos = Math.max(0, totalCols - heatmapColsVisible);
+    }
+    var visibleDates = colStartDates.slice(heatmapScrollPos, heatmapScrollPos + heatmapColsVisible);
+
+    var currentMonth = '';
+    for (var ci = 0; ci < visibleDates.length; ci++) {
+      var colDate = new Date(visibleDates[ci]);
+      var monthLabel = colDate.toLocaleDateString('en-US', { month: 'short' });
+      var label = monthLabel !== currentMonth ? monthLabel : '';
+      currentMonth = monthLabel;
+      var colLabel = $create('div', { className: 'ca-timeline-heatmap-label', textContent: label });
+      headerRow.appendChild(colLabel);
+    }
+    grid.appendChild(headerRow);
+
+    var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    for (var r = 0; r < 7; r++) {
+      var row = $create('div', { className: 'ca-timeline-heatmap-row' });
+      var dayLabel = $create('div', { className: 'ca-timeline-heatmap-label', textContent: days[r] });
+      row.appendChild(dayLabel);
+
+      for (var ci = 0; ci < visibleDates.length; ci++) {
+        var cellTs = visibleDates[ci] + r * 86400000;
+        var cellKey = cellTs;
+        var val = heatmap[cellKey] || 0;
+        var opacity = val > 0 ? Math.max(0.1, Math.min(1, val / maxVal)) : 0;
+
+        var cellClass = 'ca-timeline-heatmap-cell';
+        if (val > 0) cellClass += ' populated';
+        if (heatmapDate && cellTs === heatmapDate.getTime()) cellClass += ' selected';
+        if (cellTs === todayUTC) cellClass += ' today';
+
+        var cell = $create('div', { className: cellClass, 'data-action': 'select-heatmap-day', 'data-date': String(cellTs) });
+        var colorVar = heatmapColor === 'blue' ? 'var(--ca-accent)' : 'var(--ca-success)';
+        if (val > 0) {
+          cell.style.backgroundColor = colorVar;
+          cell.style.opacity = String(opacity);
+        }
+        cell.title = new Date(cellTs).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' \u00B7 ' + val + ' turns';
+        row.appendChild(cell);
+      }
+      grid.appendChild(row);
+    }
+
+    gridFrame.appendChild(grid);
+    container.appendChild(gridFrame);
+
+    if (totalCols > heatmapColsVisible) {
+      var scrollBar = $create('div', { className: 'ca-heatmap-scroll-bar' });
+
+      var atLeft = heatmapScrollPos <= 0;
+      var atRight = heatmapScrollPos >= totalCols - heatmapColsVisible;
+
+      var leftBtn = $create('button', { className: 'ca-heatmap-scroll-btn', 'data-action': 'heatmap-scroll-left', 'data-amount': String(-heatmapScrollStep), 'aria-label': 'Scroll left' });
+      if (atLeft) leftBtn.setAttribute('disabled', '');
+      var leftSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      leftSvg.setAttribute('viewBox', '0 0 24 24');
+      leftSvg.setAttribute('fill', 'none');
+      leftSvg.setAttribute('stroke', 'currentColor');
+      leftSvg.setAttribute('stroke-width', '2');
+      leftSvg.setAttribute('width', '16');
+      leftSvg.setAttribute('height', '16');
+      var leftPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      leftPath.setAttribute('d', 'M15 18l-6-6 6-6');
+      leftSvg.appendChild(leftPath);
+      leftBtn.appendChild(leftSvg);
+      scrollBar.appendChild(leftBtn);
+
+      var rightBtn = $create('button', { className: 'ca-heatmap-scroll-btn', 'data-action': 'heatmap-scroll-right', 'data-amount': String(heatmapScrollStep), 'aria-label': 'Scroll right' });
+      if (atRight) rightBtn.setAttribute('disabled', '');
+      var rightSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      rightSvg.setAttribute('viewBox', '0 0 24 24');
+      rightSvg.setAttribute('fill', 'none');
+      rightSvg.setAttribute('stroke', 'currentColor');
+      rightSvg.setAttribute('stroke-width', '2');
+      rightSvg.setAttribute('width', '16');
+      rightSvg.setAttribute('height', '16');
+      var rightPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      rightPath.setAttribute('d', 'M9 18l6-6-6-6');
+      rightSvg.appendChild(rightPath);
+      rightBtn.appendChild(rightSvg);
+      scrollBar.appendChild(rightBtn);
+
+      container.appendChild(scrollBar);
+    }
+
+    var legend = $create('div', { className: 'ca-timeline-heatmap-legend' });
+    legend.appendChild($create('span', { textContent: 'Less' }));
+    for (var lv = 0; lv < 4; lv++) {
+      var legCell = $create('div', { className: 'ca-timeline-heatmap-cell populated' });
+      legCell.style.backgroundColor = colorVar;
+      legCell.style.opacity = String((lv + 1) * 0.25);
+      legend.appendChild(legCell);
+    }
+    legend.appendChild($create('span', { textContent: 'More' }));
+    container.appendChild(legend);
+  }
+
+  function updateHeatmapSection() {
+    var container = window.__ca.shared.$id('ca-timeline-heatmap-grid-container');
+    if (!container || container.classList.contains('collapsed')) return;
+    renderHeatmapGrid(container);
+  }
+
   function removeTimelineOverlay() {
     var overlay = window.__ca.shared.$id('ca-timeline-overlay');
     if (overlay && overlay.parentNode) {
@@ -129,6 +318,20 @@
 
   function updateTimeline() {
     var anchors = window.__ca.storage.getAll();
+
+    if (heatmapDate) {
+      anchors = anchors.filter(function(a) {
+        if (heatmapMode === 'created') return false;
+        var history = a.usageHistory;
+        if (!history) return false;
+        for (var hi = 0; hi < history.length; hi++) {
+          var hd = new Date(history[hi]);
+          var hKey = Date.UTC(hd.getUTCFullYear(), hd.getUTCMonth(), hd.getUTCDate());
+          if (hKey === heatmapDate.getTime()) return true;
+        }
+        return false;
+      });
+    }
 
     if (currentFilter === 'active') {
       anchors = anchors.filter(function(a) { return a.active && a.turnsRemaining > 0; });
@@ -181,6 +384,7 @@
     }
 
     updateStatsBar();
+    updateHeatmapSection();
   }
 
   function groupByDay(anchors, groups) {
@@ -380,6 +584,40 @@
           }
           updateTimeline();
         }
+      } else if (action === 'toggle-heatmap') {
+        heatmapExpanded = !heatmapExpanded;
+        heatmapDate = null;
+        heatmapScrollPos = 0;
+        var toggle = window.__ca.shared.$one('.ca-timeline-heatmap-toggle');
+        if (toggle) {
+          toggle.textContent = (heatmapExpanded ? '▾' : '▸') + ' Activity Heatmap';
+        }
+        var gridContainer = window.__ca.shared.$id('ca-timeline-heatmap-grid-container');
+        if (gridContainer) {
+          gridContainer.className = 'ca-timeline-heatmap-grid-container' + (heatmapExpanded ? '' : ' collapsed');
+          updateTimeline();
+        }
+      } else if (action === 'select-heatmap-day') {
+        var date = parseInt(target.dataset.date, 10);
+        if (heatmapDate && heatmapDate.getTime() === date) {
+          heatmapDate = null;
+        } else {
+          heatmapDate = new Date(date);
+        }
+        updateTimeline();
+      } else if (action === 'heatmap-mode') {
+        heatmapMode = heatmapMode === 'activity' ? 'created' : 'activity';
+        updateTimeline();
+      } else if (action === 'heatmap-color') {
+        heatmapColor = heatmapColor === 'blue' ? 'green' : 'blue';
+        updateTimeline();
+      } else if (action === 'heatmap-scroll-left' || action === 'heatmap-scroll-right') {
+        var amount = parseInt(target.dataset.amount, 10);
+        heatmapScrollPos = Math.max(0, heatmapScrollPos + amount);
+        updateTimeline();
+      } else if (action === 'clear-heatmap') {
+        heatmapDate = null;
+        updateTimeline();
       }
     });
 
@@ -389,13 +627,22 @@
 
       if (target.dataset.action === 'timeline-sort') {
         currentSort = target.value;
+        heatmapScrollPos = 0;
         updateTimeline();
       } else if (target.dataset.action === 'timeline-group') {
         currentGroup = target.value;
         collapsedGroups = {};
+        heatmapDate = null;
+        heatmapScrollPos = 0;
         updateTimeline();
       } else if (target.dataset.action === 'timeline-filter') {
         currentFilter = target.value;
+        heatmapDate = null;
+        heatmapScrollPos = 0;
+        updateTimeline();
+      } else if (target.dataset.action === 'heatmap-range') {
+        heatmapRange = target.value;
+        heatmapScrollPos = 0;
         updateTimeline();
       }
     });

@@ -317,6 +317,39 @@ resetStorage();
 Storage.setSetting('injectionMode', 'append');
 assert(Storage._getSettings().injectionMode === 'append', 'Settings stored');
 
+console.log('\n--- Usage Heatmap Fresh Anchor ---');
+resetStorage();
+var fa = Storage.createAnchor('Fresh anchor', '', 10);
+var freshMap = Storage.getUsageHeatmap();
+var todayKeyNoon = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
+var freshTotal = 0;
+for (var fk in freshMap) { freshTotal += freshMap[fk]; }
+assert(freshTotal === 1, 'Fresh unused anchor appears in heatmap');
+
+console.log('\n--- Per-Turn History ---');
+resetStorage();
+var pt = Storage.createAnchor('History test', '', 10);
+assert(Array.isArray(pt.usageHistory), 'usageHistory is array');
+assert(pt.usageHistory.length === 0, 'usageHistory starts empty');
+for (var pti = 0; pti < 4; pti++) { Storage.decrementTurnsForActive(); }
+assert(Storage.getAll()[0].usageHistory.length === 4, '4 timestamps recorded');
+assert(Storage.getAll()[0].usageHistory[0] <= Storage.getAll()[0].usageHistory[3], 'Timestamps chronological');
+
+console.log('\n--- Usage Heatmap ---');
+resetStorage();
+var hm1 = Storage.createAnchor('Heatmap 1', '', 100);
+var hm2 = Storage.createAnchor('Heatmap 2', '', 100);
+for (var hmi = 0; hmi < 3; hmi++) { Storage.decrementTurnsForActive(); }
+Storage.toggleAnchor(hm1.id);
+for (hmi = 0; hmi < 2; hmi++) { Storage.decrementTurnsForActive(); }
+Storage.toggleAnchor(hm1.id);
+for (hmi = 0; hmi < 3; hmi++) { Storage.decrementTurnsForActive(); }
+var map = Storage.getUsageHeatmap();
+var totalTurns = 0;
+for (var key in map) { totalTurns += map[key]; }
+assert(totalTurns === 16, 'Total turns in heatmap equals 16 (14 usage + 2 created)');
+assert(Object.keys(map).length >= 1, 'At least one date entry');
+
 console.log('\n=== Results ===');
 console.log('Passed: ' + passed);
 console.log('Failed: ' + failed);

@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Contextual Anchor",
+  "version": "1.0.0",
+  "description": "Pin text from any page and auto-inject it into Gemini prompts",
+  "permissions": ["storage"],
+  "host_permissions": ["https://gemini.google.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["shared.js", "storage.js", "content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["anchor.css"],
+      "matches": ["https://gemini.google.com/*"]
+    }
+  ]
+}

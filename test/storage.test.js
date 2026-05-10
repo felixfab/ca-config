@@ -47,6 +47,7 @@ function resetStorage() {
   Storage.resetForTesting();
   Storage._setCache([]);
   Storage._setTemplateCache([]);
+  Storage._setSettings({ injectionMode: 'prepend' });
   mockStorage = {};
 }
 
@@ -214,6 +215,85 @@ var activatedAnchor = Storage.activateTemplate(tplToActivate.id);
 assert(activatedAnchor !== null, 'Activation returns anchor');
 assert(activatedAnchor.text === 'This is test context.', 'Anchor text matches template');
 assert(Storage.getTemplates()[0].usageCount === 1, 'Template usage count incremented');
+
+console.log('\n--- Global Anchors ---');
+resetStorage();
+var g1 = Storage.createAnchor('Global anchor', '', 10, true);
+var g2 = Storage.createAnchor('Local anchor', '', 10, false);
+assert(g1.global === true, 'Global flag set on creation');
+assert(g2.global === false, 'Local flag set on creation');
+assert(Storage.getGlobalOnly().length === 1, 'One global anchor');
+Storage.setGlobal(g2.id, true);
+assert(Storage.getGlobalOnly().length === 2, 'Now two global anchors');
+Storage.setGlobal(g2.id, false);
+assert(Storage.getGlobalOnly().length === 1, 'Back to one global anchor');
+
+console.log('\n--- Sort Anchors ---');
+resetStorage();
+var s1 = Storage.createAnchor('A', '', 10);
+Storage.updateAnchor(s1.id, { order: 100 });
+var s2 = Storage.createAnchor('B', '', 10);
+Storage.updateAnchor(s2.id, { order: 200 });
+var s3 = Storage.createAnchor('C', '', 10);
+Storage.updateAnchor(s3.id, { order: 300 });
+var newest = Storage.getSorted('newest');
+assert(newest[0].text === 'C', 'Newest sort: C is first (highest order)');
+assert(newest[2].text === 'A', 'Newest sort: A is last (lowest order)');
+
+console.log('\n--- Sort by Usage ---');
+resetStorage();
+var u1 = Storage.createAnchor('Low use', '', 50);
+var u2 = Storage.createAnchor('High use', '', 50);
+Storage.toggleAnchor(u1.id);
+for (var u = 0; u < 5; u++) { Storage.decrementTurnsForActive(); }
+Storage.toggleAnchor(u1.id);
+var byUsage = Storage.getSorted('most-used');
+assert(byUsage[0].text === 'High use', 'Sort by usage: highest first');
+assert(byUsage[0].usageCount === 5, 'Highest has 5 uses');
+
+console.log('\n--- Bulk Toggle ---');
+resetStorage();
+var b1 = Storage.createAnchor('Bulk 1', '', 10);
+var b2 = Storage.createAnchor('Bulk 2', '', 10);
+var b3 = Storage.createAnchor('Bulk 3', '', 10);
+Storage.bulkToggle([b1.id, b2.id]);
+assert(Storage.getAll()[0].active === false, 'Bulk toggle: first inactive');
+assert(Storage.getAll()[1].active === false, 'Bulk toggle: second inactive');
+assert(Storage.getAll()[2].active === true, 'Bulk toggle: third unchanged');
+
+console.log('\n--- Bulk Delete ---');
+resetStorage();
+var d1 = Storage.createAnchor('Del 1', '', 10);
+var d2 = Storage.createAnchor('Del 2', '', 10);
+var d3 = Storage.createAnchor('Del 3', '', 10);
+Storage.bulkDelete([d1.id, d2.id]);
+assert(Storage.getAll().length === 1, 'Bulk delete: one remaining');
+assert(Storage.getAll()[0].text === 'Del 3', 'Bulk delete: correct anchor remains');
+
+console.log('\n--- Bulk Extend ---');
+resetStorage();
+var e1 = Storage.createAnchor('Ext 1', '', 3);
+var e2 = Storage.createAnchor('Ext 2', '', 3);
+Storage.decrementTurnsForActive();
+Storage.decrementTurnsForActive();
+Storage.decrementTurnsForActive();
+assert(Storage.getAll()[0].active === false, 'Ext 1 expired');
+Storage.bulkExtend([e1.id, e2.id], 10);
+assert(Storage.getAll()[0].turnsRemaining === 10, 'Bulk extend: turns restored');
+assert(Storage.getAll()[0].active === true, 'Bulk extend: reactivated');
+
+console.log('\n--- Injection Mode ---');
+resetStorage();
+assert(Storage.getInjectionMode() === 'prepend', 'Default mode is prepend');
+Storage.setInjectionMode('append');
+assert(Storage.getInjectionMode() === 'append', 'Mode set to append');
+Storage.setInjectionMode('prepend');
+assert(Storage.getInjectionMode() === 'prepend', 'Mode set back to prepend');
+
+console.log('\n--- Settings Persistence ---');
+resetStorage();
+Storage.setSetting('injectionMode', 'append');
+assert(Storage._getSettings().injectionMode === 'append', 'Settings stored');
 
 console.log('\n=== Results ===');
 console.log('Passed: ' + passed);

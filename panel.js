@@ -7,6 +7,9 @@
   var editingId = null;
   var currentTab = 'anchors';
   var editingTemplateId = null;
+  var currentSort = 'newest';
+  var selectedIds = [];
+  var bulkMode = false;
 
   function init() {
     if (!window.__ca || !window.__ca.shared) {
@@ -24,11 +27,16 @@
     var html = '<div id="ca-panel" class="ca-panel" theme="' + theme + '">' +
       '<div class="ca-panel-header">' +
       '<h2 class="ca-panel-title">Anchors</h2>' +
+      '<div class="ca-header-actions">' +
+      '<button class="ca-btn-icon ca-btn-bulk" data-action="toggle-bulk" aria-label="Bulk select">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>' +
+      '</button>' +
       '<button class="ca-panel-close" data-action="close-panel" aria-label="Close panel">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
       '<path d="M18 6L6 18M6 6l12 12"/>' +
       '</svg>' +
       '</button>' +
+      '</div>' +
       '</div>' +
       '<div class="ca-tabs">' +
       '<button class="ca-tab active" data-action="switch-tab" data-tab="anchors">Anchors</button>' +
@@ -42,7 +50,24 @@
       '<option value="active">Active</option>' +
       '<option value="inactive">Inactive</option>' +
       '<option value="expired">Expired</option>' +
+      '<option value="global">Global</option>' +
       '</select>' +
+      '</div>' +
+      '<div class="ca-toolbar">' +
+      '<select class="ca-sort-select" data-action="sort-anchors" aria-label="Sort anchors">' +
+      '<option value="newest">Newest</option>' +
+      '<option value="most-used">Most Used</option>' +
+      '<option value="recently-used">Recently Used</option>' +
+      '</select>' +
+      '<button class="ca-btn-inject-mode" data-action="cycle-inject-mode" aria-label="Cycle injection mode">' +
+      '<span class="ca-inject-label">Prepend</span>' +
+      '</button>' +
+      '</div>' +
+      '<div id="ca-bulk-bar" class="ca-bulk-bar hidden">' +
+      '<span class="ca-bulk-count">0 selected</span>' +
+      '<button class="ca-btn-bulk-action" data-action="bulk-toggle">Toggle</button>' +
+      '<button class="ca-btn-bulk-action" data-action="bulk-extend">+5</button>' +
+      '<button class="ca-btn-bulk-action ca-btn-danger" data-action="bulk-delete">Delete</button>' +
       '</div>' +
       '<div class="ca-panel-body">' +
       '<ul class="ca-anchor-list" id="ca-anchor-list"></ul>' +
@@ -68,6 +93,7 @@
     updateAnchorList();
     updateTemplateList();
     updateBadge();
+    updateInjectModeLabel();
     setupPanelEvents();
   }
 
@@ -75,6 +101,102 @@
     var $create = window.__ca.shared.$create;
     var badge = $create('div', { id: 'ca-context-badge', className: 'ca-context-badge' });
     window.__ca.shared.$append(badge);
+  }
+
+  function renderConfirmDialog(message, onConfirm) {
+    var $create = window.__ca.shared.$create;
+    var esc = window.__ca.shared.esc;
+
+    var overlay = $create('div', { id: 'ca-confirm-overlay', className: 'ca-confirm-overlay' });
+
+    var dialog = $create('div', { className: 'ca-confirm-dialog' });
+    var msgP = $create('p', { className: 'ca-confirm-message', textContent: esc(message) });
+    dialog.appendChild(msgP);
+
+    var actions = $create('div', { className: 'ca-confirm-actions' });
+    var cancelBtn = $create('button', { className: 'ca-btn-cancel', 'data-action': 'confirm-cancel', textContent: 'Cancel' });
+    var confirmBtn = $create('button', { className: 'ca-btn-danger', 'data-action': 'confirm-ok', textContent: 'Confirm' });
+    actions.appendChild(cancelBtn);
+    actions.appendChild(confirmBtn);
+    dialog.appendChild(actions);
+
+    overlay.appendChild(dialog);
+    window.__ca.shared.$append(overlay);
+
+    overlay.addEventListener('click', function(e) {
+      var target = e.target.closest('[data-action]');
+      if (!target) return;
+      removeConfirmDialog();
+      if (target.dataset.action === 'confirm-ok' && onConfirm) {
+        onConfirm();
+      }
+    });
+  }
+
+  function removeConfirmDialog() {
+    var overlay = window.__ca.shared.$id('ca-confirm-overlay');
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
+    }
+  }
+
+  function renderTurnPopup(rect, onSelect) {
+    var $create = window.__ca.shared.$create;
+
+    var popup = $create('div', { id: 'ca-turn-popup', className: 'ca-turn-popup' });
+    popup.style.left = rect.left + 'px';
+    popup.style.top = (rect.bottom + 8) + 'px';
+
+    var title = $create('div', { className: 'ca-turn-popup-title', textContent: 'Turns' });
+    popup.appendChild(title);
+
+    var options = [1, 3, 5, 10, 25, 50];
+    for (var i = 0; i < options.length; i++) {
+      var btn = $create('button', { className: 'ca-turn-option', 'data-turns': String(options[i]), textContent: options[i] });
+      popup.appendChild(btn);
+    }
+
+    var customInput = $create('input', { className: 'ca-turn-custom', type: 'number', min: '1', placeholder: 'Custom' });
+    popup.appendChild(customInput);
+
+    var customBtn = $create('button', { className: 'ca-turn-option ca-turn-custom-btn', textContent: 'Set' });
+    popup.appendChild(customBtn);
+
+    window.__ca.shared.$append(popup);
+
+    popup.addEventListener('click', function(e) {
+      var target = e.target.closest('[data-turns]');
+      if (target) {
+        onSelect(parseInt(target.dataset.turns, 10));
+        removeTurnPopup();
+        return;
+      }
+      if (e.target === customBtn) {
+        var val = parseInt(customInput.value, 10);
+        if (val > 0) {
+          onSelect(val);
+          removeTurnPopup();
+        }
+      }
+    });
+
+    var dismissHandler = function(e) {
+      if (!popup.contains(e.target)) {
+        removeTurnPopup();
+      }
+    };
+    popup._dismissHandler = dismissHandler;
+    window.__ca.ROOT.addEventListener('mousedown', dismissHandler);
+  }
+
+  function removeTurnPopup() {
+    var popup = window.__ca.shared.$id('ca-turn-popup');
+    if (popup && popup.parentNode) {
+      if (popup._dismissHandler) {
+        window.__ca.ROOT.removeEventListener('mousedown', popup._dismissHandler);
+      }
+      popup.parentNode.removeChild(popup);
+    }
   }
 
   function updateBadge() {
@@ -89,8 +211,16 @@
     }
   }
 
+  function updateInjectModeLabel() {
+    var label = window.__ca.shared.$one('.ca-inject-label');
+    if (label) {
+      var mode = window.__ca.storage.getInjectionMode();
+      label.textContent = mode === 'append' ? 'Append' : 'Prepend';
+    }
+  }
+
   function getFilteredAnchors() {
-    var anchors = window.__ca.storage.getAll();
+    var anchors = window.__ca.storage.getSorted(currentSort);
     var filtered = anchors;
 
     if (currentFilter === 'active') {
@@ -99,6 +229,8 @@
       filtered = filtered.filter(function(a) { return !a.active || a.turnsRemaining === 0; });
     } else if (currentFilter === 'expired') {
       filtered = filtered.filter(function(a) { return a.turnsRemaining === 0; });
+    } else if (currentFilter === 'global') {
+      filtered = filtered.filter(function(a) { return a.global; });
     }
 
     if (currentSearch) {
@@ -116,15 +248,24 @@
   function buildAnchorItem(a) {
     var $create = window.__ca.shared.$create;
     var esc = window.__ca.shared.esc;
-    var escAttr = window.__ca.shared.escAttr;
 
     var isExpired = a.turnsRemaining === 0;
     var isExpiring = !isExpired && a.turnsRemaining <= 3;
     var itemClass = 'ca-anchor-item' + (a.active ? '' : ' inactive');
+    if (a.global) itemClass += ' global';
 
     var turnsClass = 'ca-anchor-turns' + (isExpiring ? ' expiring' : '') + (isExpired ? ' expired' : '');
 
     var li = $create('li', { className: itemClass, 'data-id': a.id });
+
+    if (bulkMode) {
+      var cb = $create('div', {
+        className: 'ca-bulk-checkbox' + (selectedIds.indexOf(a.id) !== -1 ? ' checked' : ''),
+        'data-action': 'bulk-select',
+        'data-id': a.id
+      });
+      li.appendChild(cb);
+    }
 
     var content = $create('div', { className: 'ca-anchor-content' });
 
@@ -162,6 +303,14 @@
           meta.appendChild(tagSpan);
         }
       }
+
+      var globalBtn = $create('button', {
+        className: 'ca-btn-global' + (a.global ? ' active' : ''),
+        'data-action': 'toggle-global',
+        'data-id': a.id,
+        textContent: a.global ? 'Global' : 'Local'
+      });
+      meta.appendChild(globalBtn);
 
       var extendBtn = $create('button', { className: 'ca-btn-extend', 'data-action': 'extend-turns', 'data-id': a.id, textContent: '+5', 'aria-label': 'Extend turns' });
       meta.appendChild(extendBtn);
@@ -350,6 +499,14 @@
     }
   }
 
+  function updateBulkBar() {
+    var bar = window.__ca.shared.$id('ca-bulk-bar');
+    if (!bar) return;
+    var count = window.__ca.shared.$one('.ca-bulk-count');
+    if (count) count.textContent = selectedIds.length + ' selected';
+    bar.className = 'ca-bulk-bar' + (bulkMode && selectedIds.length > 0 ? '' : ' hidden');
+  }
+
   function switchTab(tabName) {
     currentTab = tabName;
     var panel = window.__ca.shared.$id('ca-panel');
@@ -393,11 +550,15 @@
         window.__ca.storage.toggleAnchor(id);
         window.__ca.events.emit('anchors:changed');
       } else if (action === 'delete-anchor' && id) {
-        window.__ca.storage.deleteAnchor(id);
-        window.__ca.events.emit('anchors:changed');
+        renderConfirmDialog('Delete this anchor?', function() {
+          window.__ca.storage.deleteAnchor(id);
+          window.__ca.events.emit('anchors:changed');
+        });
       } else if (action === 'clear-expired') {
-        window.__ca.storage.clearExpired();
-        window.__ca.events.emit('anchors:changed');
+        renderConfirmDialog('Clear all expired anchors?', function() {
+          window.__ca.storage.clearExpired();
+          window.__ca.events.emit('anchors:changed');
+        });
       } else if (action === 'edit-anchor' && id) {
         editingId = id;
         updateAnchorList();
@@ -450,14 +611,65 @@
         editingTemplateId = null;
         updateTemplateList();
       } else if (action === 'delete-template' && id) {
-        window.__ca.storage.deleteTemplate(id);
-        updateTemplateList();
+        renderConfirmDialog('Delete this template?', function() {
+          window.__ca.storage.deleteTemplate(id);
+          updateTemplateList();
+        });
       } else if (action === 'add-template') {
         var tpl = window.__ca.storage.createTemplate('New Template', '', []);
         editingTemplateId = tpl.id;
         updateTemplateList();
         var nameInput = window.__ca.shared.$one('.ca-tpl-name-input[data-id="' + tpl.id + '"]');
         if (nameInput) nameInput.focus();
+      } else if (action === 'toggle-bulk') {
+        bulkMode = !bulkMode;
+        selectedIds = [];
+        updateAnchorList();
+        updateBulkBar();
+        var btn = window.__ca.shared.$one('.ca-btn-bulk');
+        if (btn) btn.className = 'ca-btn-icon ca-btn-bulk' + (bulkMode ? ' active' : '');
+      } else if (action === 'bulk-select' && id) {
+        var idx = selectedIds.indexOf(id);
+        if (idx === -1) {
+          selectedIds.push(id);
+        } else {
+          selectedIds.splice(idx, 1);
+        }
+        updateAnchorList();
+        updateBulkBar();
+      } else if (action === 'bulk-toggle') {
+        if (selectedIds.length > 0) {
+          window.__ca.storage.bulkToggle(selectedIds);
+          window.__ca.events.emit('anchors:changed');
+        }
+      } else if (action === 'bulk-extend') {
+        if (selectedIds.length > 0) {
+          window.__ca.storage.bulkExtend(selectedIds, 5);
+          window.__ca.events.emit('anchors:changed');
+        }
+      } else if (action === 'bulk-delete') {
+        var count = selectedIds.length;
+        renderConfirmDialog('Delete ' + count + ' selected anchor' + (count > 1 ? 's' : '') + '?', function() {
+          window.__ca.storage.bulkDelete(selectedIds);
+          selectedIds = [];
+          window.__ca.events.emit('anchors:changed');
+          updateBulkBar();
+        });
+      } else if (action === 'cycle-inject-mode') {
+        var current = window.__ca.storage.getInjectionMode();
+        var next = current === 'prepend' ? 'append' : 'prepend';
+        window.__ca.storage.setInjectionMode(next);
+        updateInjectModeLabel();
+      } else if (action === 'toggle-global' && id) {
+        var anchor = window.__ca.storage.getAll().filter(function(a) { return a.id === id; })[0];
+        if (anchor) {
+          window.__ca.storage.setGlobal(id, !anchor.global);
+          window.__ca.events.emit('anchors:changed');
+        }
+      } else if (action === 'confirm-cancel') {
+        removeConfirmDialog();
+      } else if (action === 'confirm-ok') {
+        removeConfirmDialog();
       }
     });
 
@@ -483,6 +695,9 @@
         updateAnchorList();
       } else if (target.dataset.action === 'import-file') {
         importAnchors(target);
+      } else if (target.dataset.action === 'sort-anchors') {
+        currentSort = target.value;
+        updateAnchorList();
       }
     });
 
@@ -554,7 +769,7 @@
           if (validateAnchorSchema(data[i])) {
             var existing = window.__ca.storage.getAll().filter(function(a) { return a.id === data[i].id; });
             if (existing.length === 0) {
-              window.__ca.storage.createAnchor(data[i].text, data[i].sourceUrl, data[i].turnsTotal);
+              window.__ca.storage.createAnchor(data[i].text, data[i].sourceUrl, data[i].turnsTotal, data[i].global);
               imported++;
             } else {
               skipped++;
@@ -579,7 +794,9 @@
     init: init,
     renderPanel: renderPanel,
     updateAnchorList: updateAnchorList,
-    updateBadge: updateBadge
+    updateBadge: updateBadge,
+    renderTurnPopup: renderTurnPopup,
+    removeTurnPopup: removeTurnPopup
   };
 
   if (document.readyState === 'loading') {

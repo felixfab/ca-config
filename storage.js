@@ -3,12 +3,14 @@
 
   var CACHE_KEY = '__ca_anchors_cache';
   var TEMPLATE_KEY = '__ca_templates_cache';
+  var SETTINGS_KEY = '__ca_settings';
   var WRITE_DELAY = 500;
   var DEBOUNCE_TIMER = null;
   var templateDebounceTimer = null;
 
   var cache = [];
   var templateCache = [];
+  var settings = { injectionMode: 'prepend' };
 
   function generateId() {
     return 'anchor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -19,11 +21,13 @@
   }
 
   function loadFromStorage(callback) {
-    chrome.storage.local.get([getStorageKey(), TEMPLATE_KEY], function(data) {
+    chrome.storage.local.get([getStorageKey(), TEMPLATE_KEY, SETTINGS_KEY], function(data) {
       var anchors = data[getStorageKey()] || [];
       var templates = data[TEMPLATE_KEY] || [];
+      var savedSettings = data[SETTINGS_KEY] || {};
       cache = anchors;
       templateCache = templates;
+      settings = Object.assign(settings, savedSettings);
       if (callback) callback(anchors);
     });
   }
@@ -34,6 +38,7 @@
       var obj = {};
       obj[getStorageKey()] = anchors;
       obj[TEMPLATE_KEY] = templateCache;
+      obj[SETTINGS_KEY] = settings;
       chrome.storage.local.set(obj, function() {
         if (callback) callback();
       });
@@ -45,13 +50,25 @@
     templateDebounceTimer = setTimeout(function() {
       var obj = {};
       obj[TEMPLATE_KEY] = templateCache;
+      obj[SETTINGS_KEY] = settings;
       chrome.storage.local.set(obj, function() {
         if (callback) callback();
       });
     }, WRITE_DELAY);
   }
 
-  function createAnchor(text, sourceUrl, turnsTotal) {
+  function saveSettings(callback) {
+    clearTimeout(DEBOUNCE_TIMER);
+    DEBOUNCE_TIMER = setTimeout(function() {
+      var obj = {};
+      obj[SETTINGS_KEY] = settings;
+      chrome.storage.local.set(obj, function() {
+        if (callback) callback();
+      });
+    }, WRITE_DELAY);
+  }
+
+  function createAnchor(text, sourceUrl, turnsTotal, isGlobal) {
     turnsTotal = (turnsTotal === undefined || turnsTotal === null) ? 10 : turnsTotal;
     var anchor = {
       id: generateId(),
@@ -61,7 +78,8 @@
       turnsTotal: turnsTotal,
       turnsRemaining: turnsTotal,
       active: turnsTotal > 0,
-      order: Date.now()
+      order: Date.now(),
+      global: !!isGlobal
     };
 
     cache.push(anchor);
@@ -242,6 +260,78 @@
     }
   }
 
+  function getSorted(sortBy) {
+    var list = cache.slice();
+    if (sortBy === 'most-used') {
+      list.sort(function(a, b) { return (b.usageCount || 0) - (a.usageCount || 0); });
+    } else if (sortBy === 'recently-used') {
+      list.sort(function(a, b) { return (b.lastUsed || 0) - (a.lastUsed || 0); });
+    } else {
+      list.sort(function(a, b) { return b.order - a.order; });
+    }
+    return list;
+  }
+
+  function setGlobal(id, isGlobal) {
+    for (var i = 0; i < cache.length; i++) {
+      if (cache[i].id === id) {
+        cache[i].global = !!isGlobal;
+        break;
+      }
+    }
+    saveToStorage(cache);
+  }
+
+  function getGlobalOnly() {
+    return cache.filter(function(a) { return a.global; });
+  }
+
+  function bulkToggle(ids) {
+    for (var i = 0; i < cache.length; i++) {
+      if (ids.indexOf(cache[i].id) !== -1) {
+        cache[i].active = !cache[i].active;
+      }
+    }
+    saveToStorage(cache);
+  }
+
+  function bulkDelete(ids) {
+    cache = cache.filter(function(a) { return ids.indexOf(a.id) === -1; });
+    saveToStorage(cache);
+  }
+
+  function bulkExtend(ids, additionalTurns) {
+    additionalTurns = additionalTurns || 5;
+    for (var i = 0; i < cache.length; i++) {
+      if (ids.indexOf(cache[i].id) !== -1) {
+        cache[i].turnsRemaining += additionalTurns;
+        cache[i].turnsTotal += additionalTurns;
+        if (cache[i].turnsRemaining > 0) {
+          cache[i].active = true;
+        }
+      }
+    }
+    saveToStorage(cache);
+  }
+
+  function getSetting(key) {
+    return settings[key];
+  }
+
+  function setSetting(key, value) {
+    settings[key] = value;
+    saveSettings();
+  }
+
+  function getInjectionMode() {
+    return settings.injectionMode || 'prepend';
+  }
+
+  function setInjectionMode(mode) {
+    settings.injectionMode = mode;
+    saveSettings();
+  }
+
   function init(callback) {
     loadFromStorage(function(anchors) {
       if (callback) callback();
@@ -251,6 +341,7 @@
   function resetForTesting() {
     cache = [];
     templateCache = [];
+    settings = { injectionMode: 'prepend' };
     clearTimeout(DEBOUNCE_TIMER);
     clearTimeout(templateDebounceTimer);
     DEBOUNCE_TIMER = null;
@@ -262,14 +353,24 @@
     createAnchor: createAnchor,
     getAll: getAll,
     getActive: getActive,
+    getSorted: getSorted,
+    getGlobalOnly: getGlobalOnly,
     updateAnchor: updateAnchor,
     deleteAnchor: deleteAnchor,
     toggleAnchor: toggleAnchor,
+    setGlobal: setGlobal,
     extendTurns: extendTurns,
     addTag: addTag,
     removeTag: removeTag,
+    bulkToggle: bulkToggle,
+    bulkDelete: bulkDelete,
+    bulkExtend: bulkExtend,
     decrementTurnsForActive: decrementTurnsForActive,
     clearExpired: clearExpired,
+    getSetting: getSetting,
+    setSetting: setSetting,
+    getInjectionMode: getInjectionMode,
+    setInjectionMode: setInjectionMode,
     createTemplate: createTemplate,
     getTemplates: getTemplates,
     deleteTemplate: deleteTemplate,
@@ -279,7 +380,9 @@
     _setCache: function(c) { cache = c; },
     _getCache: function() { return cache; },
     _setTemplateCache: function(c) { templateCache = c; },
-    _getTemplateCache: function() { return templateCache; }
+    _getTemplateCache: function() { return templateCache; },
+    _getSettings: function() { return settings; },
+    _setSettings: function(s) { settings = s; }
   };
 
   if (typeof module !== 'undefined' && module.exports) {

@@ -45,6 +45,7 @@
   }
 
   function showToast(message, type) {
+    if (!toast) return;
     type = type || '';
     toast.textContent = message;
     toast.className = 'ca-toast visible ' + type;
@@ -61,8 +62,27 @@
     return contextParts.join(' ') + ' ';
   }
 
+  function applyContextToInput(inputEl) {
+    var activeAnchors = window.__ca.storage.getActive();
+    if (activeAnchors.length === 0) return;
+
+    var inputText = inputEl.textContent || '';
+    if (inputText.length === 0) return;
+
+    var contextPrefix = buildContextPrefix(activeAnchors);
+    var mode = window.__ca.storage.getInjectionMode();
+
+    if (mode === 'append') {
+      inputEl.textContent = inputText + ' ' + contextPrefix;
+    } else {
+      inputEl.textContent = contextPrefix + inputText;
+    }
+  }
+
   function setupSelectionObserver() {
     document.addEventListener('mouseup', function(e) {
+      if (e.target.closest('.ca-selection-button')) return;
+
       var selection = window.getSelection();
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
         return;
@@ -81,21 +101,45 @@
 
       var btn = document.createElement('div');
       btn.className = 'ca-selection-button';
-      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>';
+
+      var bookmarkSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      bookmarkSvg.setAttribute('viewBox', '0 0 24 24');
+      var bookmarkPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      bookmarkPath.setAttribute('d', 'M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z');
+      bookmarkSvg.appendChild(bookmarkPath);
+      btn.appendChild(bookmarkSvg);
+
       btn.style.cssText = 'position:fixed;left:' + (rect.right + 8) + 'px;top:' + (rect.top + rect.height / 2 - 16) + 'px;z-index:2147483646;background:#4285f4;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);cursor:pointer;pointer-events:auto;';
 
       btn.addEventListener('click', function(evt) {
         evt.preventDefault();
         evt.stopPropagation();
         if (selectedText.length > 0) {
-          window.__ca.storage.createAnchor(selectedText, window.location.href, 10);
-          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-          btn.style.background = '#81c995';
-          showToast('Anchor saved', 'success');
-          window.__ca.events.emit('anchors:changed');
-          setTimeout(function() {
-            removeSelectionButton();
-          }, 1000);
+          var btnRect = btn.getBoundingClientRect();
+          window.__ca.panel.renderTurnPopup(btnRect, function(turns) {
+            try {
+              window.__ca.storage.createAnchor(selectedText, window.location.href, turns);
+              window.__ca.events.emit('anchors:changed');
+              if (window.__ca.panel.updateAnchorList) {
+                window.__ca.panel.updateAnchorList();
+              }
+            } catch(e) {
+              console.error('[CA] Error creating anchor:', e);
+            }
+            btn.removeChild(btn.firstChild);
+            var checkSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            checkSvg.setAttribute('viewBox', '0 0 24 24');
+            checkSvg.setAttribute('fill', 'white');
+            var checkPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            checkPath.setAttribute('d', 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z');
+            checkSvg.appendChild(checkPath);
+            btn.appendChild(checkSvg);
+            btn.style.background = '#81c995';
+            showToast('Anchor saved (' + turns + ' turns)', 'success');
+            setTimeout(function() {
+              removeSelectionButton();
+            }, 1000);
+          });
         }
       });
 
@@ -131,26 +175,12 @@
       inputSetup = true;
 
       sendBtn.addEventListener('click', function() {
-        var activeAnchors = window.__ca.storage.getActive();
-        if (activeAnchors.length === 0) return;
-
-        var inputText = inputEl.textContent || '';
-        if (inputText.length === 0) return;
-
-        var contextPrefix = buildContextPrefix(activeAnchors);
-        inputEl.textContent = contextPrefix + inputText;
+        applyContextToInput(inputEl);
       });
 
       inputEl.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
-          var activeAnchors = window.__ca.storage.getActive();
-          if (activeAnchors.length === 0) return;
-
-          var inputText = inputEl.textContent || '';
-          if (inputText.length === 0) return;
-
-          var contextPrefix = buildContextPrefix(activeAnchors);
-          inputEl.textContent = contextPrefix + inputText;
+          applyContextToInput(inputEl);
         }
       });
     }

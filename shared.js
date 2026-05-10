@@ -18,6 +18,31 @@
       window.__ca.ROOT = shadow;
       window.__ca.state = { theme: 'dark', panelOpen: false, anchors: [] };
 
+      var eventListeners = {};
+
+      function eventOn(event, fn) {
+        if (!eventListeners[event]) eventListeners[event] = [];
+        eventListeners[event].push(fn);
+      }
+
+      function eventOff(event, fn) {
+        if (!eventListeners[event]) return;
+        if (!fn) {
+          eventListeners[event] = [];
+          return;
+        }
+        eventListeners[event] = eventListeners[event].filter(function(l) { return l !== fn; });
+      }
+
+      function eventEmit(event, data) {
+        if (!eventListeners[event]) return;
+        for (var i = 0; i < eventListeners[event].length; i++) {
+          eventListeners[event][i](data);
+        }
+      }
+
+      window.__ca.events = { on: eventOn, off: eventOff, emit: eventEmit };
+
       function esc(str) {
         if (str == null) return '';
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -30,11 +55,46 @@
 
       function $id(id) { return shadow.getElementById(id); }
       function $one(sel) { return shadow.querySelector(sel); }
+
+      function $create(tag, attrs, children) {
+        var el = document.createElement(tag);
+        if (attrs) {
+          for (var key in attrs) {
+            if (attrs.hasOwnProperty(key)) {
+              if (key === 'className') {
+                el.className = attrs[key];
+              } else if (key === 'textContent') {
+                el.textContent = attrs[key];
+              } else if (key === 'style' && typeof attrs[key] === 'object') {
+                Object.assign(el.style, attrs[key]);
+              } else if (key.indexOf('on') === 0) {
+                el.addEventListener(key.substring(2).toLowerCase(), attrs[key]);
+              } else {
+                el.setAttribute(key, attrs[key]);
+              }
+            }
+          }
+        }
+        if (children) {
+          for (var i = 0; i < children.length; i++) {
+            if (children[i]) {
+              if (typeof children[i] === 'string') {
+                el.appendChild(document.createTextNode(children[i]));
+              } else {
+                el.appendChild(children[i]);
+              }
+            }
+          }
+        }
+        return el;
+      }
+
       function $append(el) {
         if (typeof el === 'string') {
-          var temp = document.createElement('div');
-          temp.innerHTML = el;
-          while (temp.firstChild) shadow.appendChild(temp.firstChild);
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(el, 'text/html');
+          var body = doc.body;
+          while (body.firstChild) shadow.appendChild(body.firstChild);
         } else {
           shadow.appendChild(el);
         }
@@ -46,7 +106,7 @@
         return 'dark';
       }
 
-      window.__ca.shared = { esc: esc, escAttr: escAttr, $id: $id, $one: $one, $append: $append, detectTheme: detectTheme };
+      window.__ca.shared = { esc: esc, escAttr: escAttr, $id: $id, $one: $one, $create: $create, $append: $append, detectTheme: detectTheme };
     } catch(e) {
       console.error('[CA] ERROR:', e);
     }

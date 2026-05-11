@@ -947,8 +947,7 @@
   background: var(--ca-surface);
   border-radius: var(--ca-radius-lg);
   border: 1px solid var(--ca-border);
-  max-width: 900px;
-  width: 90%;
+  width: clamp(700px, 94%, 1300px);
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -1004,13 +1003,13 @@
 }
 
 .ca-editor-sidebar {
-  width: 280px;
+  width: clamp(230px, 35%, 360px);
   flex-shrink: 0;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
   padding-right: 4px;
   min-width: 0;
   scrollbar-width: thin;
@@ -1020,7 +1019,7 @@
 .ca-editor-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 3px;
   overflow: hidden;
   min-width: 0;
 }
@@ -1080,6 +1079,7 @@
   font-size: var(--ca-font-size-sm);
   font-family: var(--ca-font);
   transition: border-color var(--ca-transition);
+  min-width: 0;
 }
 
 .ca-editor-tag-input:focus {
@@ -1101,11 +1101,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 8px 10px;
   background: var(--ca-bg);
   border: 1px solid var(--ca-border);
   border-radius: var(--ca-radius-sm);
   min-width: 0;
+  overflow: hidden;
 }
 
 .ca-editor-turns-text {
@@ -1134,18 +1135,24 @@
 .ca-editor-extend-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
+  margin-top: 2px;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .ca-editor-toggle-row {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .ca-editor-status-btn,
 .ca-editor-scope-btn {
   flex: 1;
-  padding: 10px 16px;
+  padding: 6px 7px;
   border: 1px solid var(--ca-border);
   border-radius: var(--ca-radius-sm);
   background: var(--ca-bg);
@@ -1171,14 +1178,15 @@
 
 .ca-editor-field {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
   padding: 10px 14px;
   background: var(--ca-bg);
   border: 1px solid var(--ca-border);
   border-radius: var(--ca-radius-sm);
-  gap: 12px;
+  gap: 4px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .ca-editor-field-label {
@@ -1187,6 +1195,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .ca-editor-footer {
@@ -1803,7 +1813,7 @@
 }
 
 .ca-turn-option {
-  padding: 6px 12px;
+  padding: 4px 8px;
   border: 1px solid var(--ca-border);
   border-radius: var(--ca-radius-sm);
   background: transparent;
@@ -1821,8 +1831,8 @@
 }
 
 .ca-turn-custom {
-  width: 60px;
-  padding: 6px 8px;
+  width: 40px;
+  padding: 4px 6px;
   border: 1px solid var(--ca-border);
   border-radius: var(--ca-radius-sm);
   background: var(--ca-bg);
@@ -1840,6 +1850,59 @@
   padding: 6px 12px;
 }
 
+.ca-ttl-none {
+  color: var(--ca-text-secondary);
+}
+
+.ca-turn-option.selected {
+  background: var(--ca-accent);
+  color: white;
+  border-color: var(--ca-accent);
+}
+
+.ca-create-btn {
+  background: var(--ca-accent);
+  color: white;
+  border-color: var(--ca-accent);
+  font-weight: 500;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.ca-create-btn:hover {
+  background: var(--ca-accent-hover);
+  border-color: var(--ca-accent-hover);
+}
+
+.ca-turn-popup-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--ca-border);
+  margin: 2px 0;
+}
+
+.ca-ttl-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--ca-surface-hover);
+  color: var(--ca-text-secondary);
+  border-radius: 10px;
+  font-size: var(--ca-font-size-sm);
+  font-weight: 500;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ca-ttl-pill.warning {
+  background: #fbbc04;
+  color: #202124;
+}
+
+.ca-editor-ttl-remove {
+  color: var(--ca-text-secondary);
+}
+
 .ca-editor-reset-btn {
   background: var(--ca-accent);
   color: white;
@@ -1849,4 +1912,18 @@
 .ca-editor-reset-btn:hover {
   background: var(--ca-accent-hover);
   border-color: var(--ca-accent-hover);
+}
+
+@media (max-width: 1366px) {
+  .ca-editor-header {
+    padding: 14px 24px;
+  }
+
+  .ca-editor-footer {
+    padding: 10px 24px;
+  }
+
+  .ca-editor-main {
+    padding: 12px 24px;
+  }
 }

@@ -26,6 +26,16 @@
       setupTurnDecrementObserver();
       setupTriggerZoneHover();
       setupKeyboardShortcuts();
+      setupTTLCleanup();
+    });
+  }
+
+  function setupTTLCleanup() {
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') {
+        window.__ca.storage.checkExpiredTTLs();
+        window.__ca.events.emit('anchors:changed');
+      }
     });
   }
 
@@ -116,9 +126,12 @@
         evt.stopPropagation();
         if (selectedText.length > 0) {
           var btnRect = btn.getBoundingClientRect();
-          window.__ca.panel.renderTurnPopup(btnRect, function(turns) {
+          window.__ca.panel.renderTurnPopup(btnRect, function(turns, ttlHours) {
             try {
-              window.__ca.storage.createAnchor(selectedText, window.location.href, turns);
+              var anchor = window.__ca.storage.createAnchor(selectedText, window.location.href, turns);
+              if (ttlHours !== null && ttlHours !== undefined) {
+                window.__ca.storage.setTTL(anchor.id, ttlHours);
+              }
               window.__ca.events.emit('anchors:changed');
               if (window.__ca.panel.updateAnchorList) {
                 window.__ca.panel.updateAnchorList();
@@ -135,7 +148,7 @@
             checkSvg.appendChild(checkPath);
             btn.appendChild(checkSvg);
             btn.style.background = '#81c995';
-            showToast('Anchor saved (' + turns + ' turns)', 'success');
+            showToast('Anchor saved (' + turns + ' turns' + (ttlHours ? ', ' + ttlHours + 'h TTL' : '') + ')', 'success');
             setTimeout(function() {
               removeSelectionButton();
             }, 1000);

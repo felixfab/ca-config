@@ -81,7 +81,9 @@
       active: turnsTotal > 0,
       order: Date.now(),
       global: !!isGlobal,
-      usageHistory: []
+      usageHistory: [],
+      ttlHours: null,
+      ttlExpiresAt: null
     };
 
     cache.push(anchor);
@@ -258,6 +260,9 @@
         cache[i].totalTurnsConsumed = (cache[i].totalTurnsConsumed || 0) + 1;
         if (!cache[i].usageHistory) cache[i].usageHistory = [];
         cache[i].usageHistory.push(Date.now());
+        if (cache[i].ttlHours !== null) {
+          cache[i].ttlExpiresAt = Date.now() + cache[i].ttlHours * 3600000;
+        }
         changed = true;
         if (cache[i].turnsRemaining === 0) {
           cache[i].active = false;
@@ -296,6 +301,63 @@
     if (cache.length !== original) {
       saveToStorage(cache);
     }
+  }
+
+  function setTTL(id, hours) {
+    for (var i = 0; i < cache.length; i++) {
+      if (cache[i].id === id) {
+        cache[i].ttlHours = hours;
+        if (hours === null) {
+          cache[i].ttlExpiresAt = null;
+        } else {
+          cache[i].ttlExpiresAt = Date.now() + hours * 3600000;
+        }
+        break;
+      }
+    }
+    saveToStorage(cache);
+  }
+
+  function extendTTL(id, hours) {
+    for (var i = 0; i < cache.length; i++) {
+      if (cache[i].id === id) {
+        if (cache[i].ttlHours === null) return;
+        cache[i].ttlExpiresAt = (cache[i].ttlExpiresAt || Date.now()) + hours * 3600000;
+        if (cache[i].ttlExpiresAt > Date.now() && cache[i].turnsRemaining > 0) {
+          cache[i].active = true;
+        }
+        break;
+      }
+    }
+    saveToStorage(cache);
+  }
+
+  function resetTTL(id) {
+    for (var i = 0; i < cache.length; i++) {
+      if (cache[i].id === id) {
+        if (cache[i].ttlHours === null) return;
+        cache[i].ttlExpiresAt = Date.now() + cache[i].ttlHours * 3600000;
+        if (cache[i].turnsRemaining > 0) {
+          cache[i].active = true;
+        }
+        break;
+      }
+    }
+    saveToStorage(cache);
+  }
+
+  function checkExpiredTTLs() {
+    var changed = false;
+    var now = Date.now();
+    for (var i = 0; i < cache.length; i++) {
+      if (cache[i].ttlHours !== null && cache[i].ttlExpiresAt !== null && now > cache[i].ttlExpiresAt) {
+        if (cache[i].active) {
+          cache[i].active = false;
+          changed = true;
+        }
+      }
+    }
+    if (changed) saveToStorage(cache);
   }
 
   function getSorted(sortBy) {
@@ -406,6 +468,10 @@
     bulkExtend: bulkExtend,
     decrementTurnsForActive: decrementTurnsForActive,
     clearExpired: clearExpired,
+    setTTL: setTTL,
+    extendTTL: extendTTL,
+    resetTTL: resetTTL,
+    checkExpiredTTLs: checkExpiredTTLs,
     getUsageHeatmap: getUsageHeatmap,
     getSetting: getSetting,
     setSetting: setSetting,

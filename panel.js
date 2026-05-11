@@ -146,43 +146,114 @@
     }
   }
 
-  function renderTurnPopup(rect, onSelect) {
+  function renderTurnPopup(rect, onCreate) {
     var $create = window.__ca.shared.$create;
 
     var popup = $create('div', { id: 'ca-turn-popup', className: 'ca-turn-popup' });
     popup.style.left = rect.left + 'px';
-    popup.style.top = (rect.bottom + 8) + 'px';
 
-    var title = $create('div', { className: 'ca-turn-popup-title', textContent: 'Turns' });
-    popup.appendChild(title);
+    var turnTitle = $create('div', { className: 'ca-turn-popup-title', textContent: 'Turns' });
+    popup.appendChild(turnTitle);
 
-    var options = [1, 3, 5, 10, 25, 50];
-    for (var i = 0; i < options.length; i++) {
-      var btn = $create('button', { className: 'ca-turn-option', 'data-turns': String(options[i]), textContent: options[i] });
-      popup.appendChild(btn);
+    var turnOptions = [1, 3, 5, 10, 25, 50];
+    for (var i = 0; i < turnOptions.length; i++) {
+      var tBtn = $create('button', { className: 'ca-turn-option', 'data-turns': String(turnOptions[i]), textContent: turnOptions[i] });
+      popup.appendChild(tBtn);
     }
 
-    var customInput = $create('input', { className: 'ca-turn-custom', type: 'number', min: '1', placeholder: 'Custom' });
-    popup.appendChild(customInput);
+    var turnCustom = $create('input', { id: 'ca-turn-custom-val', className: 'ca-turn-custom', type: 'number', min: '1', placeholder: 'Custom' });
+    popup.appendChild(turnCustom);
 
-    var customBtn = $create('button', { className: 'ca-turn-option ca-turn-custom-btn', textContent: 'Set' });
-    popup.appendChild(customBtn);
+    var turnSetBtn = $create('button', { className: 'ca-turn-option ca-turn-custom-btn', textContent: 'Set' });
+    popup.appendChild(turnSetBtn);
 
+    var divider = $create('div', { className: 'ca-turn-popup-divider' });
+    popup.appendChild(divider);
+
+    var ttlTitle = $create('div', { className: 'ca-turn-popup-title', textContent: 'TTL (idle expiry)' });
+    popup.appendChild(ttlTitle);
+
+    var ttlOptions = [1, 6, 12, 24];
+    for (var ti = 0; ti < ttlOptions.length; ti++) {
+      var ttBtn = $create('button', { className: 'ca-turn-option', 'data-ttl': String(ttlOptions[ti]), textContent: ttlOptions[ti] + 'h' });
+      popup.appendChild(ttBtn);
+    }
+    var ttlDays = [3, 7, 30];
+    for (var td = 0; td < ttlDays.length; td++) {
+      var tdLabel = ttlDays[td] === 7 ? '7d' : ttlDays[td] === 30 ? '30d' : '3d';
+      var tdBtn = $create('button', { className: 'ca-turn-option', 'data-ttl': String(ttlDays[td] * 24), textContent: tdLabel });
+      popup.appendChild(tdBtn);
+    }
+
+    var noTtlBtn = $create('button', { className: 'ca-turn-option ca-ttl-none', 'data-ttl': 'none', textContent: 'No TTL' });
+    popup.appendChild(noTtlBtn);
+
+    var ttlCustom = $create('input', { id: 'ca-ttl-custom-val', className: 'ca-turn-custom', type: 'number', min: '1', placeholder: 'Custom hrs' });
+    popup.appendChild(ttlCustom);
+
+    var ttlSetBtn = $create('button', { className: 'ca-turn-option ca-turn-custom-btn', textContent: 'Set' });
+    popup.appendChild(ttlSetBtn);
+
+    var createBtn = $create('button', { className: 'ca-turn-option ca-create-btn', textContent: 'Create' });
+    popup.appendChild(createBtn);
+
+    popup.style.visibility = 'hidden';
+    popup.style.position = 'fixed';
+    popup.style.top = '0';
     window.__ca.shared.$append(popup);
+
+    var actualHeight = popup.getBoundingClientRect().height;
+    popup.style.visibility = '';
+
+    var popupTop = rect.bottom + 8;
+    if (popupTop + actualHeight > window.innerHeight - 16) {
+      var aboveTop = rect.top - actualHeight - 8;
+      if (aboveTop >= 8) {
+        popupTop = aboveTop;
+      } else {
+        popupTop = 8;
+        popup.style.maxHeight = (window.innerHeight - 24) + 'px';
+        popup.style.overflowY = 'auto';
+      }
+    }
+    popup.style.top = popupTop + 'px';
+
+    var selectedTurns = null;
+    var selectedTTL = null;
 
     popup.addEventListener('click', function(e) {
       var target = e.target.closest('[data-turns]');
       if (target) {
-        onSelect(parseInt(target.dataset.turns, 10));
-        removeTurnPopup();
+        selectedTurns = parseInt(target.dataset.turns, 10);
+        highlightTurnOption(popup, selectedTurns);
         return;
       }
-      if (e.target === customBtn) {
-        var val = parseInt(customInput.value, 10);
-        if (val > 0) {
-          onSelect(val);
-          removeTurnPopup();
+      if (e.target === turnSetBtn) {
+        var cVal = parseInt(turnCustom.value, 10);
+        if (cVal > 0) {
+          selectedTurns = cVal;
+          highlightTurnOption(popup, cVal);
         }
+        return;
+      }
+      var ttlTarget = e.target.closest('[data-ttl]');
+      if (ttlTarget) {
+        selectedTTL = ttlTarget.dataset.ttl === 'none' ? null : parseInt(ttlTarget.dataset.ttl, 10);
+        highlightTTLOption(popup, selectedTTL);
+        return;
+      }
+      if (e.target === ttlSetBtn) {
+        var tVal = parseInt(ttlCustom.value, 10);
+        if (tVal > 0) {
+          selectedTTL = tVal;
+          highlightTTLOption(popup, tVal);
+        }
+        return;
+      }
+      if (e.target === createBtn) {
+        if (selectedTurns === null) selectedTurns = 10;
+        onCreate(selectedTurns, selectedTTL);
+        removeTurnPopup();
       }
     });
 
@@ -193,6 +264,37 @@
     };
     popup._dismissHandler = dismissHandler;
     window.__ca.ROOT.addEventListener('mousedown', dismissHandler);
+
+    popup._docHandler = function(e) {
+      if (e.target !== window.__ca.HOST) {
+        removeTurnPopup();
+      }
+    };
+    document.addEventListener('mousedown', popup._docHandler);
+  }
+
+  function highlightTurnOption(popup, value) {
+    var buttons = popup.querySelectorAll('[data-turns]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].className = 'ca-turn-option';
+    }
+    var matched = popup.querySelector('[data-turns="' + value + '"]');
+    if (matched) matched.className = 'ca-turn-option selected';
+  }
+
+  function highlightTTLOption(popup, value) {
+    var buttons = popup.querySelectorAll('[data-ttl]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].className = 'ca-turn-option';
+    }
+    if (value === null) {
+      var noneBtn = popup.querySelector('[data-ttl="none"]');
+      if (noneBtn) noneBtn.className = 'ca-turn-option selected';
+    } else {
+      var valStr = String(value);
+      var matched = popup.querySelector('[data-ttl="' + valStr + '"]');
+      if (matched) matched.className = 'ca-turn-option selected';
+    }
   }
 
   function removeTurnPopup() {
@@ -200,6 +302,9 @@
     if (popup && popup.parentNode) {
       if (popup._dismissHandler) {
         window.__ca.ROOT.removeEventListener('mousedown', popup._dismissHandler);
+      }
+      if (popup._docHandler) {
+        document.removeEventListener('mousedown', popup._docHandler);
       }
       popup.parentNode.removeChild(popup);
     }
@@ -287,6 +392,16 @@
 
     var turnsSpan = $create('span', { className: turnsClass, textContent: esc(a.turnsRemaining) + '/' + esc(a.turnsTotal) });
     meta.appendChild(turnsSpan);
+
+    if (a.ttlHours !== null && a.ttlExpiresAt !== null) {
+      var ttlRemaining = a.ttlExpiresAt - Date.now();
+      if (ttlRemaining > 0) {
+        var ttlClass = 'ca-ttl-pill' + (ttlRemaining < 3600000 ? ' warning' : '');
+        var ttlText = ttlRemaining < 3600000 ? Math.ceil(ttlRemaining / 60000) + 'm' : Math.ceil(ttlRemaining / 3600000) + 'h';
+        var ttlPill = $create('span', { className: ttlClass, textContent: '⏳ ' + ttlText });
+        meta.appendChild(ttlPill);
+      }
+    }
 
     if (a.tags && a.tags.length > 0) {
       for (var t = 0; t < a.tags.length; t++) {
@@ -617,6 +732,37 @@
       toggleRow.appendChild(scopeBtn);
       sectionStatus.appendChild(toggleRow);
       sidebar.appendChild(sectionStatus);
+
+      var sectionTTLCtrl = $create('div', { id: 'ca-editor-ttl', className: 'ca-editor-section' });
+      var ttlCtrlTitle = $create('div', { className: 'ca-editor-section-title', textContent: 'TTL (idle expiry)' });
+      sectionTTLCtrl.appendChild(ttlCtrlTitle);
+
+      var ttlDisplay = $create('div', { className: 'ca-editor-field' });
+      var ttlLabel;
+      if (data.ttlHours === null || data.ttlHours === undefined) {
+        ttlLabel = $create('span', { className: 'ca-editor-field-label', textContent: 'No TTL set' });
+      } else if (data.ttlExpiresAt && data.ttlExpiresAt > Date.now()) {
+        var remainingH = Math.ceil((data.ttlExpiresAt - Date.now()) / 3600000);
+        ttlLabel = $create('span', { className: 'ca-editor-field-label', textContent: '⏳ ' + remainingH + 'h remaining · Idle: ' + data.ttlHours + 'h' });
+      } else {
+        ttlLabel = $create('span', { className: 'ca-editor-field-label', textContent: 'Expired · Idle TTL: ' + data.ttlHours + 'h' });
+      }
+      ttlDisplay.appendChild(ttlLabel);
+      sectionTTLCtrl.appendChild(ttlDisplay);
+
+      var ttlRow = $create('div', { className: 'ca-editor-extend-row' });
+      var ttlPresets = [1, 6, 24];
+      for (var tti = 0; tti < ttlPresets.length; tti++) {
+        var ttlPset = ttlPresets[tti];
+        var ttlPBtn = $create('button', { className: 'ca-turn-option', 'data-action': 'extend-editor-ttl', 'data-id': data.id, 'data-amount': String(ttlPset), textContent: '+' + ttlPset + 'h' });
+        ttlRow.appendChild(ttlPBtn);
+      }
+      var ttlResetBtn = $create('button', { className: 'ca-turn-option', 'data-action': 'reset-editor-ttl', 'data-id': data.id, textContent: 'Reset' });
+      ttlRow.appendChild(ttlResetBtn);
+      var ttlRemoveBtn = $create('button', { className: 'ca-turn-option ca-editor-ttl-remove', 'data-action': 'remove-editor-ttl', 'data-id': data.id, textContent: 'Remove' });
+      ttlRow.appendChild(ttlRemoveBtn);
+      sectionTTLCtrl.appendChild(ttlRow);
+      sidebar.appendChild(sectionTTLCtrl);
     }
 
     var sectionUsage = $create('div', { id: 'ca-editor-usage', className: 'ca-editor-section' });
@@ -746,6 +892,18 @@
         scopeBtn.textContent = updated.global ? 'Global' : 'Local';
         scopeBtn.className = 'ca-editor-scope-btn' + (updated.global ? ' active' : '');
       }
+
+      var ttlLabel = window.__ca.shared.$one('#ca-editor-ttl .ca-editor-field-label');
+      if (ttlLabel) {
+        if (!updated.ttlHours) {
+          ttlLabel.textContent = 'No TTL set';
+        } else if (updated.ttlExpiresAt && updated.ttlExpiresAt > Date.now()) {
+          var remH = Math.ceil((updated.ttlExpiresAt - Date.now()) / 3600000);
+          ttlLabel.textContent = '⏳ ' + remH + 'h remaining · Idle: ' + updated.ttlHours + 'h';
+        } else {
+          ttlLabel.textContent = 'Expired · Idle TTL: ' + updated.ttlHours + 'h';
+        }
+      }
     }
     if (section === 'usage' || section === 'all') {
       var overlay = window.__ca.shared.$id('ca-editor-overlay');
@@ -838,6 +996,21 @@
         window.__ca.events.emit('anchors:changed');
         refreshEditorSection('status', id);
       }
+    } else if (action === 'extend-editor-ttl' && id) {
+      var ttlAmount = parseInt(target.dataset.amount, 10);
+      if (ttlAmount > 0) {
+        window.__ca.storage.extendTTL(id, ttlAmount);
+        window.__ca.events.emit('anchors:changed');
+        refreshEditorSection('all', id);
+      }
+    } else if (action === 'reset-editor-ttl' && id) {
+      window.__ca.storage.resetTTL(id);
+      window.__ca.events.emit('anchors:changed');
+      refreshEditorSection('all', id);
+    } else if (action === 'remove-editor-ttl' && id) {
+      window.__ca.storage.setTTL(id, null);
+      window.__ca.events.emit('anchors:changed');
+      refreshEditorSection('all', id);
     }
   }
 

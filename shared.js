@@ -16,6 +16,7 @@
 
       window.__ca = window.__ca || {};
       window.__ca.ROOT = shadow;
+      window.__ca.HOST = root;
       window.__ca.state = { theme: 'dark', panelOpen: false, anchors: [] };
 
       var eventListeners = {};

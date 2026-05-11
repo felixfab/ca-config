@@ -350,6 +350,51 @@ for (var key in map) { totalTurns += map[key]; }
 assert(totalTurns === 16, 'Total turns in heatmap equals 16 (14 usage + 2 created)');
 assert(Object.keys(map).length >= 1, 'At least one date entry');
 
+console.log('\n--- Set TTL ---');
+resetStorage();
+var ttl1 = Storage.createAnchor('TTL anchor', '', 10);
+assert(ttl1.ttlHours === null, 'TTL hours start null');
+assert(ttl1.ttlExpiresAt === null, 'TTL expires at starts null');
+Storage.setTTL(ttl1.id, 24);
+var ttl1Updated = Storage.getAll()[0];
+assert(ttl1Updated.ttlHours === 24, 'TTL hours set to 24');
+assert(typeof ttl1Updated.ttlExpiresAt === 'number', 'TTL expires at is a number');
+
+console.log('\n--- Extend TTL ---');
+var ttlBeforeExtend = Storage.getAll()[0].ttlExpiresAt;
+Storage.extendTTL(ttl1.id, 6);
+var ttlAfterExtend = Storage.getAll()[0].ttlExpiresAt;
+assert(ttlAfterExtend > ttlBeforeExtend, 'TTL extended forward');
+
+console.log('\n--- Reset TTL ---');
+var nowBefore = Date.now();
+Storage.resetTTL(ttl1.id);
+var ttlAfterReset = Storage.getAll()[0].ttlExpiresAt;
+assert(ttlAfterReset >= nowBefore + 24 * 3600000, 'TTL reset to now + 24h');
+
+console.log('\n--- Remove TTL ---');
+Storage.setTTL(ttl1.id, null);
+assert(Storage.getAll()[0].ttlHours === null, 'TTL removed');
+assert(Storage.getAll()[0].ttlExpiresAt === null, 'TTL expires cleared');
+
+console.log('\n--- Check Expired TTLs ---');
+resetStorage();
+var exp = Storage.createAnchor('Will expire', '', 10);
+Storage.setTTL(exp.id, 0);
+Storage.getAll()[0].ttlExpiresAt = Date.now() - 1000;
+assert(Storage.getAll()[0].active === true, 'Still active before check');
+Storage.checkExpiredTTLs();
+assert(Storage.getAll()[0].active === false, 'Deactivated after TTL expiry check');
+
+console.log('\n--- TTL Reset on Usage ---');
+resetStorage();
+var use = Storage.createAnchor('TTL usage reset', '', 10);
+Storage.setTTL(use.id, 24);
+var nowBeforeUse = Date.now();
+Storage.decrementTurnsForActive();
+var newExpiry = Storage.getAll()[0].ttlExpiresAt;
+assert(newExpiry > nowBeforeUse + 23 * 3600000, 'TTL expires at reset on turn consumed');
+
 console.log('\n=== Results ===');
 console.log('Passed: ' + passed);
 console.log('Failed: ' + failed);

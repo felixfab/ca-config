@@ -543,6 +543,16 @@
     });
     topRow.appendChild(turnsPill);
 
+    if (a.ttlHours !== null && a.ttlExpiresAt !== null) {
+      var ttlRemain = a.ttlExpiresAt - Date.now();
+      if (ttlRemain > 0) {
+        var ttlClass = 'ca-ttl-pill' + (ttlRemain < 3600000 ? ' warning' : '');
+        var ttlText = ttlRemain < 3600000 ? Math.ceil(ttlRemain / 60000) + 'm' : Math.ceil(ttlRemain / 3600000) + 'h';
+        var ttlPill = $create('span', { className: ttlClass, textContent: '⏳ ' + ttlText });
+        topRow.appendChild(ttlPill);
+      }
+    }
+
     card.appendChild(topRow);
 
     var bar = $create('div', { className: 'ca-timeline-card-bar' });

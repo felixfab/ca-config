@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Pin text from any page and auto-inject it into Gemini prompts",
   "permissions": ["storage"],
-  "host_permissions": ["https://gemini.google.com/*"],
+  "host_permissions": ["https://gemini.google.com/*", "https://raw.githubusercontent.com/*"],
   "content_scripts": [
     {
       "matches": ["https://gemini.google.com/*"],

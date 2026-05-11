@@ -1,16 +1,84 @@
 (function() {
   'use strict';
 
-  var SELECTORS = {
-    input: 'div[role="textbox"][aria-label="Enter a prompt for Gemini"]',
-    sendButton: 'button[aria-label="Send message"]',
-    chatHistory: '#chat-history'
+  var CONFIG_URL = 'https://raw.githubusercontent.com/USER/REPO/main/ca-config.json';
+
+  var BUILTIN_SELECTORS = {
+    input: ["div[role=\"textbox\"][aria-label=\"Enter a prompt for Gemini\"]", "div[role=\"textbox\"][aria-label=\"Ask Gemini\"]"],
+    sendButton: ["button[aria-label=\"Send message\"]", "button[aria-label=\"Submit prompt\"]"],
+    chatHistory: ["#chat-history", "[data-test-id=\"conversation\"]"]
   };
+
+  var BUILTIN_MSG_DETECTION = {
+    msgIdSelectors: ["[data-test-id=\"message\"]", "[data-test-id=\"conversation-turn\"]"],
+    userIndicators: [".user-profile-picture", "[data-test-id=\"user-input\"]", "[data-role=\"user\"]"],
+    textPatterns: ["Enter a prompt", "Ask Gemini"]
+  };
+
+  var activeSelectors = BUILTIN_SELECTORS;
+  var activeMsgDetection = BUILTIN_MSG_DETECTION;
 
   var lastUserMessageIndex = -1;
   var selectionButton = null;
   var toast = null;
   var inputSetup = false;
+
+  function resolveSelector(selectorList) {
+    for (var i = 0; i < selectorList.length; i++) {
+      var el = document.querySelector(selectorList[i]);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  function resolveNodeSelector(node, selectorList) {
+    for (var i = 0; i < selectorList.length; i++) {
+      var el = node.querySelector(selectorList[i]);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  function checkHealth() {
+    var inputOk = resolveSelector(activeSelectors.input) !== null;
+    var sendOk = resolveSelector(activeSelectors.sendButton) !== null;
+    var chatOk = resolveSelector(activeSelectors.chatHistory) !== null;
+    var allOk = inputOk && sendOk && chatOk;
+    var anyOk = inputOk || sendOk || chatOk;
+    window.__ca.state.health = allOk ? 'live' : anyOk ? 'degraded' : 'offline';
+    window.__ca.events.emit('health:changed', window.__ca.state.health);
+
+    if (!anyOk) {
+      setTimeout(checkHealth, 1000);
+    }
+  }
+
+  function loadConfig() {
+    try {
+      var cached = sessionStorage.getItem('ca_config');
+      if (cached) {
+        var parsed = JSON.parse(cached);
+        activeSelectors = parsed.selectors || BUILTIN_SELECTORS;
+        activeMsgDetection = parsed.messageDetection || BUILTIN_MSG_DETECTION;
+        checkHealth();
+        return;
+      }
+    } catch(e) {}
+
+    fetch(CONFIG_URL)
+      .then(function(r) { return r.json(); })
+      .then(function(config) {
+        try { sessionStorage.setItem('ca_config', JSON.stringify(config)); } catch(e) {}
+        activeSelectors = config.selectors || BUILTIN_SELECTORS;
+        activeMsgDetection = config.messageDetection || BUILTIN_MSG_DETECTION;
+        checkHealth();
+      })
+      .catch(function() {
+        activeSelectors = BUILTIN_SELECTORS;
+        activeMsgDetection = BUILTIN_MSG_DETECTION;
+        checkHealth();
+      });
+  }
 
   function init() {
     if (!window.__ca || !window.__ca.shared) {
@@ -27,6 +95,7 @@
       setupTriggerZoneHover();
       setupKeyboardShortcuts();
       setupTTLCleanup();
+      loadConfig();
     });
   }
 
@@ -176,8 +245,8 @@
 
   function setupPromptInterceptor() {
     function trySetup() {
-      var inputEl = document.querySelector(SELECTORS.input);
-      var sendBtn = document.querySelector(SELECTORS.sendButton);
+      var inputEl = resolveSelector(activeSelectors.input);
+      var sendBtn = resolveSelector(activeSelectors.sendButton);
 
       if (!inputEl || !sendBtn) {
         setTimeout(trySetup, 500);
@@ -202,7 +271,7 @@
   }
 
   function setupTurnDecrementObserver() {
-    var chatHistory = document.querySelector(SELECTORS.chatHistory);
+    var chatHistory = resolveSelector(activeSelectors.chatHistory);
     if (!chatHistory) return;
 
     var processedMessages = new Set();
@@ -214,11 +283,18 @@
           for (var j = 0; j < mutation.addedNodes.length; j++) {
             var node = mutation.addedNodes[j];
             if (node.nodeType === Node.ELEMENT_NODE) {
-              var msgId = node.querySelector && node.querySelector('[data-test-id="message"]');
+              var msgId = node.querySelector && resolveNodeSelector(node, activeMsgDetection.msgIdSelectors);
               if (msgId && !processedMessages.has(msgId)) {
                 processedMessages.add(msgId);
-                var userMsg = node.querySelector && node.querySelector('.user-profile-picture, [data-test-id="user-input"]');
-                if (userMsg || node.textContent.includes('Enter a prompt')) {
+                var userMsg = node.querySelector && resolveNodeSelector(node, activeMsgDetection.userIndicators);
+                var textMatch = false;
+                for (var pi = 0; pi < activeMsgDetection.textPatterns.length; pi++) {
+                  if (node.textContent.indexOf(activeMsgDetection.textPatterns[pi]) !== -1) {
+                    textMatch = true;
+                    break;
+                  }
+                }
+                if (userMsg || textMatch) {
                   window.__ca.storage.decrementTurnsForActive();
                   window.__ca.events.emit('anchors:changed');
                 }

@@ -20,6 +20,16 @@
       if (currentTab === 'anchors') updateAnchorList();
       updateBadge();
     });
+    window.__ca.events.on('health:changed', function(state) {
+      updateHealthDot(state);
+    });
+  }
+
+  function updateHealthDot(state) {
+    var dot = window.__ca.shared.$id('ca-health-dot');
+    if (!dot) return;
+    dot.className = 'ca-health-dot ' + state;
+    dot.title = state === 'live' ? 'All systems connected' : state === 'degraded' ? 'Some features unavailable' : 'Gemini interface changed - update in progress';
   }
 
   function renderPanel() {
@@ -27,7 +37,8 @@
     var html = '<div id="ca-panel" class="ca-panel" theme="' + theme + '">' +
       '<div class="ca-panel-header">' +
       '<h2 class="ca-panel-title">Anchors</h2>' +
-      '<div class="ca-header-actions">' +
+       '<div class="ca-header-actions">' +
+       '<span class="ca-health-dot offscreen" id="ca-health-dot" title="Checking..."></span>' +
       '<button class="ca-btn-icon ca-btn-timeline" data-action="open-timeline" aria-label="Open timeline">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>' +
       '</button>' +
@@ -100,6 +111,9 @@
     updateTemplateList();
     updateBadge();
     updateInjectModeLabel();
+    if (window.__ca.state.health && window.__ca.state.health !== 'offline') {
+      updateHealthDot(window.__ca.state.health);
+    }
     setupPanelEvents();
   }
 

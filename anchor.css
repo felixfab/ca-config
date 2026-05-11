@@ -146,6 +146,19 @@
   height: 18px;
 }
 
+.ca-health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-self: center;
+  transition: background var(--ca-transition);
+}
+.ca-health-dot.offscreen { display: none; }
+.ca-health-dot.live     { background: var(--ca-success); }
+.ca-health-dot.degraded { background: #fbbc04; }
+.ca-health-dot.offline  { background: #ea4335; }
+
 .ca-btn-timeline {
   width: 32px;
   height: 32px;

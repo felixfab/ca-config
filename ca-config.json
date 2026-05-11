@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "selectors": {
+    "input": [
+      "div[role=\"textbox\"][aria-label=\"Enter a prompt for Gemini\"]",
+      "div[role=\"textbox\"][aria-label=\"Ask Gemini\"]",
+      "[contenteditable=\"true\"][role=\"textbox\"]"
+    ],
+    "sendButton": [
+      "button[aria-label=\"Send message\"]",
+      "button[aria-label=\"Submit prompt\"]"
+    ],
+    "chatHistory": [
+      "#chat-history",
+      "[data-test-id=\"conversation\"]"
+    ]
+  },
+  "messageDetection": {
+    "msgIdSelectors": [
+      "[data-test-id=\"message\"]",
+      "[data-test-id=\"conversation-turn\"]"
+    ],
+    "userIndicators": [
+      ".user-profile-picture",
+      "[data-test-id=\"user-input\"]",
+      "[data-role=\"user\"]"
+    ],
+    "textPatterns": [
+      "Enter a prompt",
+      "Ask Gemini"
+    ]
+  }
+}

@@ -130,6 +130,7 @@
     window.__ca.shared.$append(overlay);
 
     overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) return removeConfirmDialog();
       var target = e.target.closest('[data-action]');
       if (!target) return;
       removeConfirmDialog();
@@ -137,6 +138,14 @@
         onConfirm();
       }
     });
+
+    overlay.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        removeConfirmDialog();
+      }
+    });
+
+    cancelBtn.focus();
   }
 
   function removeConfirmDialog() {
@@ -1094,7 +1103,7 @@
         selectedIds = [];
         updateAnchorList();
         updateBulkBar();
-        var btn = window.__ca.shared.$one('.ca-btn-bulk');
+        var btn = window.__ca.shared.$one('[data-action="toggle-bulk"]');
         if (btn) btn.className = 'ca-btn-icon ca-btn-bulk' + (bulkMode ? ' active' : '');
       } else if (action === 'bulk-select' && id) {
         var idx = selectedIds.indexOf(id);
@@ -1310,7 +1319,8 @@
     updateBadge: updateBadge,
     renderTurnPopup: renderTurnPopup,
     removeTurnPopup: removeTurnPopup,
-    renderEditorOverlay: renderEditorOverlay
+    renderEditorOverlay: renderEditorOverlay,
+    renderConfirmDialog: renderConfirmDialog
   };
 
   if (document.readyState === 'loading') {

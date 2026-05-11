@@ -43,7 +43,7 @@
 
     var headerActions = $create('div', { className: 'ca-header-actions' });
 
-    var bulkBtn = $create('button', { className: 'ca-btn-icon ca-btn-bulk', 'data-action': 'toggle-timeline-bulk', 'aria-label': 'Bulk select' });
+    var bulkBtn = $create('button', { className: 'ca-btn-icon ca-btn-bulk' + (timelineBulkMode ? ' active' : ''), 'data-action': 'toggle-timeline-bulk', 'aria-label': 'Bulk select' });
     var bulkBtnSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     bulkBtnSvg.setAttribute('viewBox', '0 0 24 24');
     bulkBtnSvg.setAttribute('fill', 'none');
@@ -217,14 +217,14 @@
     headerRow.appendChild(corner);
 
     var weekMs = 7 * 86400000;
-    var totalCols = Math.max(1, Math.ceil((todayUTC - startDateUTC) / weekMs));
+    var totalCols = Math.max(1, Math.floor((todayUTC - startDateUTC) / weekMs) + 1);
     var colStartDates = [];
     for (var c = totalCols - 1; c >= 0; c--) {
       var colTs = startDateUTC + c * weekMs;
       colStartDates.push(colTs);
     }
 
-    if (heatmapScrollPos === 0 || heatmapScrollPos > totalCols - heatmapColsVisible) {
+    if (heatmapScrollPos > totalCols - heatmapColsVisible) {
       heatmapScrollPos = Math.max(0, totalCols - heatmapColsVisible);
     }
     var visibleDates = colStartDates.slice(heatmapScrollPos, heatmapScrollPos + heatmapColsVisible);
@@ -250,7 +250,7 @@
         var cellTs = visibleDates[ci] + r * 86400000;
         var cellKey = cellTs;
         var val = heatmap[cellKey] || 0;
-        var opacity = val > 0 ? Math.max(0.1, Math.min(1, val / maxVal)) : 0;
+        var opacity = val > 0 ? Math.max(0.25, Math.min(1, val / maxVal)) : 0;
 
         var cellClass = 'ca-timeline-heatmap-cell';
         if (val > 0) cellClass += ' populated';
@@ -263,7 +263,7 @@
           cell.style.backgroundColor = colorVar;
           cell.style.opacity = String(opacity);
         }
-        cell.title = new Date(cellTs).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' \u00B7 ' + val + ' turns';
+        cell.title = new Date(cellTs).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' \u00B7 ' + val + ' events';
         row.appendChild(cell);
       }
       grid.appendChild(row);
@@ -635,7 +635,7 @@
       } else if (action === 'toggle-timeline-bulk') {
         timelineBulkMode = !timelineBulkMode;
         timelineSelectedIds = [];
-        var bBtn = window.__ca.shared.$one('.ca-btn-bulk');
+        var bBtn = window.__ca.shared.$one('[data-action="toggle-timeline-bulk"]');
         if (bBtn) bBtn.className = 'ca-btn-icon ca-btn-bulk' + (timelineBulkMode ? ' active' : '');
         updateTimeline();
       } else if (action === 'bulk-select-timeline') {
@@ -659,7 +659,7 @@
         }
       } else if (action === 'bulk-delete-timeline') {
         var bcount = timelineSelectedIds.length;
-        renderConfirmDialog('Delete ' + bcount + ' selected anchor' + (bcount > 1 ? 's' : '') + '?', function() {
+        window.__ca.panel.renderConfirmDialog('Delete ' + bcount + ' selected anchor' + (bcount > 1 ? 's' : '') + '?', function() {
           window.__ca.storage.bulkDelete(timelineSelectedIds);
           timelineSelectedIds = [];
           window.__ca.events.emit('anchors:changed');

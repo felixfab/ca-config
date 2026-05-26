@@ -1,18 +1,23 @@
 {
-  "_v": 2,
+  "version": 2,
   "platforms": {
     "gemini": {
       "selectors": {
         "input": [
           "div[role=\"textbox\"][aria-label=\"Enter a prompt for Gemini\"]",
           "div[role=\"textbox\"][aria-label=\"Ask Gemini\"]",
-          "[contenteditable=\"true\"][role=\"textbox\"]"
+          "div[role=\"textbox\"][aria-label=\"Ask anything\"]",
+          "div[role=\"textbox\"][contenteditable=\"true\"]"
         ],
         "sendButton": [
           "button[aria-label=\"Send message\"]",
           "button[aria-label=\"Submit prompt\"]"
         ],
         "chatHistory": [
+          "message-list",
+          ".conversation-container",
+          "[data-test-id=\"conversation-container\"]",
+          "main",
           "#chat-history",
           "[data-test-id=\"conversation\"]",
           "[role=\"feed\"]",
@@ -21,12 +26,16 @@
       },
       "messageDetection": {
         "msgIdSelectors": [
-          "[data-test-id=\"message\"]",
+          "ms-chat-turn",
           "[data-test-id=\"conversation-turn\"]",
+          "[data-test-id=\"message\"]",
           "[data-message-id]",
           "[data-e2e-id]"
         ],
         "userIndicators": [
+          "user-query",
+          ".user-query",
+          "[data-test-id=\"user-query\"]",
           ".user-profile-picture",
           "[data-test-id=\"user-input\"]",
           "[data-role=\"user\"]",
@@ -34,7 +43,8 @@
         ],
         "textPatterns": [
           "Enter a prompt",
-          "Ask Gemini"
+          "Ask Gemini",
+          "Ask anything"
         ]
       }
     },
@@ -60,30 +70,16 @@
       }
     }
   },
-  "anchor_version": "3.6.0",
-  "profile": "finance_wealth_advisory",
-  "extension_config": {
-    "target_engine": "hardware_bound",
-    "vram_guard": true,
-    "compact_payload": true
-  },
   "prompt_assembly": {
-    "role_definition": "Wealth Advisory Analyst",
-    "reasoning_protocol": "Analyze, Validate, Summarize",
-    "domain_focus": [
-      "Cryptocurrency (BTC, ETH, SUI)",
-      "Australian Property Market (Victoria)",
-      "Precious Metals"
-    ],
-    "output_requirements": {
-      "format": "Markdown tables for comparisons; bulleted analysis.",
-      "clarity": "Professional, plain language; avoid jargon and hype.",
-      "compliance": "Explicitly state: 'This is educational information, not licensed financial advice.' Direct users to professionals for tax/legal issues."
-    },
-    "behavioral_protocols": {
-      "tone": "Professional, objective, and analytical.",
-      "interaction_style": "If the query is ambiguous, ask 1-2 clarifying questions before providing a recommendation.",
-      "uncertainty": "If data is insufficient, state: 'I do not have sufficient information to answer this reliably,' and suggest expert consultation."
-    }
+    "role_definition": "Helpful Assistant",
+    "reasoning_protocol": "Think step-by-step before responding",
+    "domain_focus": [],
+    "tone_profile": { "tone": "Clear, concise, and helpful", "avoid": "" },
+    "socratic_trigger": "",
+    "output_requirements": { "format": "", "clarity": "", "compliance": "" },
+    "uncertainty_protocol": ""
+  },
+  "extension_config": {
+    "cmaThreshold": 5
   }
 }

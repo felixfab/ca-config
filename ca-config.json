@@ -9,10 +9,7 @@
           "div[role=\"textbox\"][aria-label=\"Ask anything\"]",
           "div[role=\"textbox\"][contenteditable=\"true\"]"
         ],
-        "sendButton": [
-          "button[aria-label=\"Send message\"]",
-          "button[aria-label=\"Submit prompt\"]"
-        ],
+        "sendButton": [],
         "chatHistory": [
           "message-list",
           ".conversation-container",

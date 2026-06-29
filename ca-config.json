@@ -11,23 +11,21 @@
         ],
         "sendButton": [],
         "chatHistory": [
-          "message-list",
           ".conversation-container",
           "[data-test-id=\"conversation-container\"]",
           "main",
           "#chat-history",
           "[data-test-id=\"conversation\"]",
           "[role=\"feed\"]",
-          "[role=\"log\"]"
+          "[role=\"log\"]",
+          "infinite-scroller[data-test-id=\"chat-history-container\"]",
+          ".chat-history"
         ]
       },
       "messageDetection": {
         "msgIdSelectors": [
-          "ms-chat-turn",
-          "[data-test-id=\"conversation-turn\"]",
-          "[data-test-id=\"message\"]",
-          "[data-message-id]",
-          "[data-e2e-id]"
+          "user-query",
+          "model-response"
         ],
         "userIndicators": [
           "user-query",
@@ -71,9 +69,16 @@
     "role_definition": "Helpful Assistant",
     "reasoning_protocol": "Think step-by-step before responding",
     "domain_focus": [],
-    "tone_profile": { "tone": "Clear, concise, and helpful", "avoid": "" },
+    "tone_profile": {
+      "tone": "Clear, concise, and helpful",
+      "avoid": ""
+    },
     "socratic_trigger": "",
-    "output_requirements": { "format": "", "clarity": "", "compliance": "" },
+    "output_requirements": {
+      "format": "",
+      "clarity": "",
+      "compliance": ""
+    },
     "uncertainty_protocol": ""
   },
   "extension_config": {

@@ -4,12 +4,15 @@
     "gemini": {
       "selectors": {
         "input": [
+          "div[role=\"textbox\"][aria-label=\"Enter a prompt for Gemini\"][contenteditable=\"true\"]",
           "div[role=\"textbox\"][aria-label=\"Enter a prompt for Gemini\"]",
           "div[role=\"textbox\"][aria-label=\"Ask Gemini\"]",
           "div[role=\"textbox\"][aria-label=\"Ask anything\"]",
           "div[role=\"textbox\"][contenteditable=\"true\"]"
         ],
-        "sendButton": [],
+        "sendButton": [
+          "button[aria-label=\"Send message\"]"
+        ],
         "chatHistory": [
           ".conversation-container",
           "[data-test-id=\"conversation-container\"]",
@@ -37,6 +40,7 @@
           "[data-message-role=\"user\"]"
         ],
         "textPatterns": [
+          "Enter a prompt for Gemini",
           "Enter a prompt",
           "Ask Gemini",
           "Ask anything"

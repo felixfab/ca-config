@@ -1,0 +1,31 @@
+# Environment variables (API keys, tokens, secrets)
+.env
+.env.local
+.env.*.local
+
+# Dependency directories
+node_modules/
+
+# SSH keys and certificates
+*.key
+*.pem
+*.crt
+*.cert
+id_*
+github_*
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Playwright browser downloads (large binaries)
+~/.cache/ms-playwright/
+test-results/
+playwright-report/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

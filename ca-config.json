@@ -50,10 +50,16 @@
     "claude": {
       "selectors": {
         "input": [
+          "div[role=\"textbox\"][aria-label=\"Write your prompt to Claude\"][contenteditable=\"true\"][data-testid=\"chat-input\"]",
           "div[contenteditable=\"true\"][role=\"textbox\"][data-testid=\"chat-input\"]",
-          "div.tiptap.ProseMirror"
+          "div.tiptap.ProseMirror",
+          "div[contenteditable=\"true\"]"
         ],
-        "sendButton": [],
+        "sendButton": [
+          "button[aria-label=\"Send message\"]",
+          "button[aria-label*=\"send\" i]",
+          "button[data-testid=\"send-button\"]"
+        ],
         "chatHistory": [
           "div[data-autoscroll-container=\"true\"]"
         ]
@@ -66,6 +72,25 @@
           "[data-user-message-bubble=\"true\"]"
         ],
         "textPatterns": []
+      }
+    },
+    "chatgpt": {
+      "selectors": {
+        "input": [
+          "div[role=\"textbox\"][aria-label=\"Chat with ChatGPT\"][contenteditable=\"true\"]#prompt-textarea",
+          "div#prompt-textarea",
+          "div[role=\"textbox\"][aria-label=\"Chat with ChatGPT\"]",
+          "div[contenteditable=\"true\"]"
+        ],
+        "sendButton": [],
+        "chatHistory": []
+      },
+      "messageDetection": {
+        "msgIdSelectors": [],
+        "userIndicators": [],
+        "textPatterns": [
+          "Chat with ChatGPT"
+        ]
       }
     }
   },

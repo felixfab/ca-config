@@ -56,8 +56,8 @@
           "div[contenteditable=\"true\"]"
         ],
         "sendButton": [
-          "button[aria-label=\"Send message\"]",
           "button[aria-label*=\"send\" i]",
+          "button[aria-label=\"Send message\"]",
           "button[data-testid=\"send-button\"]"
         ],
         "chatHistory": [
@@ -77,7 +77,9 @@
     "chatgpt": {
       "selectors": {
         "input": [
-          "div#prompt-textarea[role=\"textbox\"][aria-label=\"Chatear con ChatGPT\"][contenteditable=\"true\"]",
+          "div#prompt-textarea[role=\"textbox\"][aria-label*=\"ChatGPT\" i][contenteditable=\"true\"]",
+          "div#prompt-textarea[contenteditable=\"true\"][role=\"textbox\"]",
+          "div[aria-label*=\"ChatGPT\"][contenteditable=\"true\"][role=\"textbox\"]",
           "div[role=\"textbox\"][aria-label=\"Chat with ChatGPT\"][contenteditable=\"true\"]#prompt-textarea",
           "div[role=\"textbox\"][aria-label=\"Chat with ChatGPT\"]",
           "div[contenteditable=\"true\"]"
@@ -88,9 +90,7 @@
       "messageDetection": {
         "msgIdSelectors": [],
         "userIndicators": [],
-        "textPatterns": [
-          "Chat with ChatGPT"
-        ]
+        "textPatterns": []
       }
     }
   },

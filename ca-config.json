@@ -77,9 +77,11 @@
     "chatgpt": {
       "selectors": {
         "input": [
+          "textarea[aria-label*=\"ChatGPT\" i]",
           "div#prompt-textarea[role=\"textbox\"][aria-label*=\"ChatGPT\" i][contenteditable=\"true\"]",
           "div#prompt-textarea[contenteditable=\"true\"][role=\"textbox\"]",
           "div[aria-label*=\"ChatGPT\"][contenteditable=\"true\"][role=\"textbox\"]",
+          "div#prompt-textarea",
           "div[role=\"textbox\"][aria-label=\"Chat with ChatGPT\"][contenteditable=\"true\"]#prompt-textarea",
           "div[role=\"textbox\"][aria-label=\"Chat with ChatGPT\"]",
           "div[contenteditable=\"true\"]"

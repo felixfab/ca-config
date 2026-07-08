@@ -4,6 +4,7 @@
     "gemini": {
       "selectors": {
         "input": [
+          "div[contenteditable=\"true\"]",
           "div[role=\"textbox\"][aria-label=\"Enter a prompt for Gemini\"][contenteditable=\"true\"]",
           "div[role=\"textbox\"][aria-label=\"Enter a prompt for Gemini\"]",
           "div[role=\"textbox\"][aria-label=\"Ask Gemini\"]",

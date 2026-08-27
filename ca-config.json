@@ -29,7 +29,8 @@
       "messageDetection": {
         "msgIdSelectors": [
           "user-query",
-          "model-response"
+          "model-response",
+          "response-container"
         ],
         "userIndicators": [
           "user-query",
